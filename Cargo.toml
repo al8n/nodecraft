@@ -1,32 +1,23 @@
 [package]
 authors = ["Al Liu <scygliu1@gmail.com>"]
-name = "wg"
-description = "Golang like WaitGroup implementation for sync/async Rust."
-homepage = "https://github.com/al8n/wg"
-repository = "https://github.com/al8n/wg.git"
-documentation = "https://docs.rs/wg/"
+name = "nodecraft"
+description = "Crafting seamless node operations for distributed systems, which provides foundational traits for node identification and address resolution."
+homepage = "https://github.com/al8n/nodecraft"
+repository = "https://github.com/al8n/nodecraft.git"
+documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.4.2"
+version = "0.0.0"
 license = "MIT OR Apache-2.0"
-keywords = ["waitgroup", "async", "sync", "notify", "wake"]
-categories = ["asynchronous", "concurrency", "data-structures"]
+keywords = ["node", "async"]
+categories = ["network-programming", "distributed-systems"]
 edition = "2021"
 
 [features]
 default = []
-full = ["async", "triomphe", "parking_lot"]
-async = ["atomic-waker"]
-triomphe = ["dep:triomphe"]
-parking_lot = ["dep:parking_lot"]
 
 [dependencies]
-atomic-waker = { version = "1", optional = true }
-parking_lot = {version = "0.12", optional = true }
-triomphe = { version = "0.1", optional = true }
 
 [dev-dependencies]
-tokio = { version = "1.32", features = ["full"] }
-async-std = { version = "1.12.0", features = ["attributes"]  }
 
 [package.metadata.docs.rs]
 all-features = true
