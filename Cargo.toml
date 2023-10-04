@@ -13,9 +13,22 @@ categories = ["network-programming", "distributed-systems"]
 edition = "2021"
 
 [features]
-default = []
+default = ["std"]
+alloc = []
+std = []
+
+# enable runtime agnostic features
+agnostic = ["dep:agnostic", "async"]
+# enable async features
+async = ["dep:async-trait", "dep:futures-util"]
+
+# enable dns node address resolver
+dns = ["agnostic/dns", "async", "std"]
 
 [dependencies]
+agnostic = { version = "0.1.18", optional = true }
+async-trait = { version = "0.1", optional = true }
+futures-util = { version = "0.3", optional = true }
 
 [dev-dependencies]
 
