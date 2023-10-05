@@ -160,8 +160,8 @@ pub struct DnsResolver<R: Runtime> {
 impl<R: Runtime> DnsResolver<R> {
   /// Create a new [`DnsResolver`] with the given options.
   pub fn new(opts: DnsResolverOptions) -> Result<Self, Error> {
-    let dns = if let Some(path) = opts.dns_config_path {
-      let (config, options) = read_resolv_conf(&path)?;
+    let dns = if let Some(ref path) = opts.dns_config_path {
+      let (config, options) = read_resolv_conf(path)?;
       if config.name_servers().is_empty() {
         #[cfg(feature = "tracing")]
         tracing::warn!(

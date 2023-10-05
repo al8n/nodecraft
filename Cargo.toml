@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.1.1"
+version = "0.1.2"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -36,7 +36,7 @@ serde = ["dep:serde", "smol_str?/serde", "bytes?/serde", "humantime-serde"]
 tracing = ["dep:tracing"]
 
 [dependencies]
-agnostic = { version = "0.1.19", optional = true }
+agnostic = { version = "0.1.21", optional = true }
 async-trait = { version = "0.1", optional = true }
 bytes = { version = "1.5", default-features = false, optional = true }
 futures = { version = "0.3", default-features = false, optional = true }

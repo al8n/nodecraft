@@ -6,7 +6,7 @@ pub use id::*;
 #[cfg(feature = "std")]
 use std::string::String;
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use ::alloc::string::String;
 
 #[cfg(feature = "alloc")]

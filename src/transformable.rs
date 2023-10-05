@@ -8,7 +8,7 @@ mod vec;
 #[cfg(feature = "std")]
 use std::{string::String, vec::Vec};
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use ::alloc::{string::String, vec::Vec};
 
 /// The type can transform its representation between structured and byte form.
@@ -67,6 +67,7 @@ pub trait Transformable {
 /// The error type for errors that get returned when encoding or decoding fails.
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
+#[cfg(feature = "alloc")]
 pub enum BytesTransformableError {
   /// Returned when the buffer is too small to encode.
   #[cfg_attr(feature = "std", error(
@@ -82,7 +83,7 @@ pub enum BytesTransformableError {
   Custom(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 impl core::fmt::Display for BytesTransformableError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
@@ -95,6 +96,7 @@ impl core::fmt::Display for BytesTransformableError {
   }
 }
 
+#[cfg(feature = "alloc")]
 impl BytesTransformableError {
   /// Create a new `BytesTransformableError::Corrupted` error.
   #[inline]
@@ -117,6 +119,7 @@ impl BytesTransformableError {
 /// The error type for errors that get returned when encoding or decoding str based structs fails.
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
+#[cfg(feature = "alloc")]
 pub enum StringTransformableError {
   /// Returned when the buffer is too small to encode.
   #[cfg_attr(feature = "std", error(
@@ -135,14 +138,14 @@ pub enum StringTransformableError {
   Custom(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 impl core::convert::From<core::str::Utf8Error> for StringTransformableError {
   fn from(err: core::str::Utf8Error) -> Self {
     Self::Utf8Error(err)
   }
 }
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 impl core::fmt::Display for StringTransformableError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
@@ -156,6 +159,7 @@ impl core::fmt::Display for StringTransformableError {
   }
 }
 
+#[cfg(feature = "alloc")]
 impl StringTransformableError {
   /// Create a new `BytesTransformableError::Corrupted` error.
   #[inline]
@@ -184,6 +188,7 @@ impl StringTransformableError {
   }
 }
 
+#[cfg(feature = "alloc")]
 const LEGNTH_SIZE: usize = core::mem::size_of::<u32>();
 
 #[cfg(all(feature = "std", feature = "async"))]
@@ -208,6 +213,7 @@ fn decode_bytes_from<R: std::io::Read>(src: &mut R) -> std::io::Result<Vec<u8>> 
   src.read_exact(&mut buf).map(|_| buf)
 }
 
+#[cfg(feature = "alloc")]
 fn decode_bytes(src: &[u8]) -> Result<Vec<u8>, BytesTransformableError> {
   let len = src.len();
   if len < core::mem::size_of::<u32>() {
@@ -222,6 +228,7 @@ fn decode_bytes(src: &[u8]) -> Result<Vec<u8>, BytesTransformableError> {
   Ok(src[LEGNTH_SIZE..LEGNTH_SIZE + len].to_vec())
 }
 
+#[cfg(feature = "alloc")]
 fn encode_bytes(src: &[u8], dst: &mut [u8]) -> Result<(), BytesTransformableError> {
   let encoded_len = src.len() + LEGNTH_SIZE;
   if dst.len() < encoded_len {
@@ -250,6 +257,7 @@ async fn encode_bytes_to_async<W: futures::io::AsyncWrite + Unpin>(
   dst.write_all(src).await
 }
 
+#[cfg(feature = "alloc")]
 fn encoded_bytes_len(src: &[u8]) -> usize {
   core::mem::size_of::<u32>() + src.len()
 }

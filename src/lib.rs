@@ -18,8 +18,8 @@ pub use address::*;
 pub use id::*;
 
 /// `NodeAddressResolver` trait for async.
-#[cfg(all(feature = "std", feature = "async"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "std", feature = "async"))))]
+#[cfg(feature = "resolver")]
+#[cfg_attr(docsrs, doc(cfg(feature = "resolver")))]
 pub mod resolver;
 
 #[cfg(feature = "async")]
