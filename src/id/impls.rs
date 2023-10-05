@@ -14,3 +14,5 @@ impl super::NodeId for String {}
 
 #[cfg(feature = "smol_str")]
 impl super::NodeId for smol_str::SmolStr {}
+
+mod numbers;

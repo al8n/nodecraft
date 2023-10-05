@@ -16,10 +16,12 @@ use ::alloc::{string::String, vec::Vec};
 pub trait Transformable {
   /// The error type returned when encoding or decoding fails.
   #[cfg(feature = "std")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
   type Error: std::error::Error + Send + Sync + 'static;
 
   /// The error type returned when encoding or decoding fails.
   #[cfg(not(feature = "std"))]
+  #[cfg_attr(docsrs, doc(cfg(not(feature = "std"))))]
   type Error: core::fmt::Display + Send + Sync + 'static;
 
   /// Encodes the value into the given buffer for transmission.
@@ -230,10 +232,12 @@ fn decode_bytes(src: &[u8]) -> Result<Vec<u8>, BytesTransformableError> {
 
 #[cfg(feature = "alloc")]
 fn encode_bytes(src: &[u8], dst: &mut [u8]) -> Result<(), BytesTransformableError> {
-  let encoded_len = src.len() + LEGNTH_SIZE;
+  let encoded_len = encoded_bytes_len(src);
   if dst.len() < encoded_len {
     return Err(BytesTransformableError::EncodeBufferTooSmall);
   }
+  dst[..LEGNTH_SIZE].copy_from_slice(&(encoded_len as u32).to_be_bytes());
+  dst[LEGNTH_SIZE..LEGNTH_SIZE + encoded_len].copy_from_slice(src);
   Ok(())
 }
 
@@ -259,5 +263,5 @@ async fn encode_bytes_to_async<W: futures::io::AsyncWrite + Unpin>(
 
 #[cfg(feature = "alloc")]
 fn encoded_bytes_len(src: &[u8]) -> usize {
-  core::mem::size_of::<u32>() + src.len()
+  LEGNTH_SIZE + src.len()
 }
