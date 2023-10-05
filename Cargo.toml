@@ -6,29 +6,51 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.0.0"
+version = "0.1.0"
 license = "MIT OR Apache-2.0"
-keywords = ["node", "async"]
-categories = ["network-programming", "distributed-systems"]
+keywords = ["node", "async", "distributed-systems"]
+categories = ["network-programming", "asynchronous", "development-tools"]
 edition = "2021"
 
 [features]
 default = ["std"]
-alloc = []
-std = []
+alloc = ["smol_str"]
+std = ["smol_str/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std", "bytes?/std"]
 
 # enable runtime agnostic features
 agnostic = ["dep:agnostic", "async"]
+
 # enable async features
-async = ["dep:async-trait", "dep:futures-util"]
+async = ["dep:async-trait", "dep:futures"]
 
 # enable dns node address resolver
-dns = ["agnostic/dns", "async", "std"]
+dns = ["std", "resolver", "dep:trust-dns-resolver", "dep:crossbeam-skiplist", "async", "agnostic?/dns"]
+
+# enable node address resolver
+resolver = ["async"]
+
+serde = ["dep:serde", "smol_str?/serde", "bytes?/serde", "humantime-serde"]
+
+# enable tracing
+tracing = ["dep:tracing"]
 
 [dependencies]
-agnostic = { version = "0.1.18", optional = true }
+agnostic = { version = "0.1.19", optional = true }
 async-trait = { version = "0.1", optional = true }
-futures-util = { version = "0.3", optional = true }
+bytes = { version = "1.5", default-features = false, optional = true }
+futures = { version = "0.3", default-features = false, optional = true }
+thiserror = { version = "1", optional = true }
+
+serde = { version = "1", default-features = false, optional = true, features = ["derive"] }
+humantime-serde = { version = "1", default-features = false, optional = true}
+
+smol_str = { version = "0.2", default-features = false, optional = true }
+
+idna = { version = "0.4", default-features = false, optional = true }
+trust-dns-resolver = { version = "0.23", default-features = false, optional = true }
+crossbeam-skiplist = { version = "0.1", optional = true }
+
+tracing = { version = "0.1", optional = true }
 
 [dev-dependencies]
 
