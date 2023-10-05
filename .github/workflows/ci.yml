@@ -45,75 +45,156 @@ jobs:
     - name: Apply clippy lints
       run: cargo clippy --all-features
 
-  build:
-    runs-on: ubuntu-latest
+  alloc:
+    name: alloc
     strategy:
       matrix:
-        rust:
-          - nightly
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Install latest nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-          override: true
-          components: rustfmt, clippy
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Test
+        run: cargo build --no-default-features --features alloc
 
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+  resolver:
+    name: resolver
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Test
+        run: cargo build --no-default-features --features resolver
 
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-  # async:
-  #   name: async
-  #   strategy:
-  #     matrix:
-  #       os:
-  #         - ubuntu-latest
-  #         - macos-latest
-  #         - windows-latest
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Install Rust
-  #       # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
-  #       run: rustup update stable --no-self-update && rustup default stable
-  #     - name: Test
-  #       run: cargo test --no-default-features --features async
-  # full:
-  #   name: full
-  #   strategy:
-  #     matrix:
-  #       os:
-  #         - ubuntu-latest
-  #         - macos-latest
-  #         - windows-latest
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Install Rust
-  #       # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
-  #       run: rustup update stable --no-self-update && rustup default stable
-  #     - name: Test
-  #       run: cargo test --no-default-features --features full
+  agnostic-resolver:
+    name: agnostic-resolver
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Test
+        run: cargo build --no-default-features --features resolver,agnostic
+
+  agnostic:
+    name: agnostic
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Test
+        run: cargo build --no-default-features --features agnostic
+
+  dns-resolver:
+    name: dns-resolver
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Test
+        run: cargo build --no-default-features --features dns
+
+  async:
+    name: async
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Test
+        run: cargo build --no-default-features --features async
+
+  std:
+    name: std
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Build
+        run: cargo build
+
+  full:
+    name: full
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Build
+        run: cargo build --no-default-features --features full
 
   coverage:
-    name: cargo tarpaulin
+    name: coverage
     runs-on: ubuntu-latest
     needs:
-      # - async
-      # - full
-      - build
-      - clippy
       - rustfmt
+      - clippy
+      - alloc
+      - resolver
+      - agnostic-resolver
+      - agnostic
+      - dns-resolver
+      - async
+      - std
+      - full
     steps:
       - uses: actions/checkout@v3
       - name: Install latest nightly

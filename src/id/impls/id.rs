@@ -35,6 +35,13 @@ pub enum IdTransformableError {
 }
 
 #[cfg(not(feature = "std"))]
+impl core::convert::From<core::str::Utf8Error> for IdTransformableError {
+  fn from(err: core::str::Utf8Error) -> Self {
+    Self::Utf8Error(err)
+  }
+}
+
+#[cfg(not(feature = "std"))]
 impl core::fmt::Display for IdTransformableError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
@@ -92,6 +99,7 @@ impl Id {
   }
 }
 
+#[cfg(feature = "std")]
 const INLINE: usize = 32;
 
 #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
@@ -276,13 +284,13 @@ impl AsRef<str> for Id {
 }
 
 impl core::fmt::Display for Id {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     self.0.fmt(f)
   }
 }
 
 impl core::fmt::Debug for Id {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     self.0.fmt(f)
   }
 }

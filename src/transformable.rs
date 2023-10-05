@@ -5,6 +5,12 @@ mod string;
 #[cfg(feature = "alloc")]
 mod vec;
 
+#[cfg(feature = "std")]
+use std::{string::String, vec::Vec};
+
+#[cfg(not(feature = "std"))]
+use ::alloc::{string::String, vec::Vec};
+
 /// The type can transform its representation between structured and byte form.
 #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 pub trait Transformable {
@@ -12,6 +18,7 @@ pub trait Transformable {
   #[cfg(feature = "std")]
   type Error: std::error::Error + Send + Sync + 'static;
 
+  /// The error type returned when encoding or decoding fails.
   #[cfg(not(feature = "std"))]
   type Error: core::fmt::Display + Send + Sync + 'static;
 
@@ -129,6 +136,13 @@ pub enum StringTransformableError {
 }
 
 #[cfg(not(feature = "std"))]
+impl core::convert::From<core::str::Utf8Error> for StringTransformableError {
+  fn from(err: core::str::Utf8Error) -> Self {
+    Self::Utf8Error(err)
+  }
+}
+
+#[cfg(not(feature = "std"))]
 impl core::fmt::Display for StringTransformableError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
@@ -164,6 +178,7 @@ impl StringTransformableError {
     match err {
       BytesTransformableError::EncodeBufferTooSmall => Self::EncodeBufferTooSmall,
       BytesTransformableError::Corrupted => Self::Corrupted,
+      #[cfg(feature = "std")]
       BytesTransformableError::Custom(err) => Self::Custom(err),
     }
   }

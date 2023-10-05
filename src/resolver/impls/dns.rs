@@ -3,7 +3,6 @@ use std::{
   io,
   net::{SocketAddr, ToSocketAddrs},
   path::PathBuf,
-  time::Instant,
 };
 
 use agnostic::{
@@ -17,7 +16,7 @@ use smol_str::SmolStr;
 
 use crate::{Address, Kind};
 
-use super::super::NodeAddressResolver;
+use super::{super::NodeAddressResolver, CachedSocketAddr};
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
@@ -132,33 +131,16 @@ impl Default for DnsResolverOptions {
   fn default() -> Self {
     Self {
       dns_config_path: None,
+      record_ttl: default_record_ttl(),
     }
-  }
-}
-
-struct CachedSocketAddr {
-  val: SocketAddr,
-  born: Instant,
-  ttl: Duration,
-}
-
-impl CachedSocketAddr {
-  fn new(val: SocketAddr, ttl: Duration) -> Self {
-    Self {
-      val,
-      born: Instant::now(),
-      ttl,
-    }
-  }
-
-  fn is_expired(&self) -> bool {
-    self.born.elapsed() > self.ttl
   }
 }
 
 /// A resolver which supports both `domain:port` and socket address.
-/// If you can make sure, you always play with [`SocketAddr`], you may want to
-/// use [`SocketAddrResolver`](crate::transport::resolver::default::SocketAddrResolver).
+///
+/// - If you can make sure, you always play with [`SocketAddr`], you may want to
+/// use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
+/// - If you do not want to send DNS queries, you may want to use [`AddressResolver`](crate::resolver::address::AddressResolver).
 ///
 /// **N.B.** If a domain contains multiple ip addresses, there is no guarantee that
 /// which one will be used. Users should make sure that the domain only contains

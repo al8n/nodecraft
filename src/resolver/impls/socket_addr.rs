@@ -2,11 +2,10 @@ use std::{convert::Infallible, net::SocketAddr};
 
 use super::super::NodeAddressResolver;
 
-#[cfg(feature = "agnostic")]
-pub use ag::SocketAddrResolver;
+pub use resolver::SocketAddrResolver;
 
 #[cfg(feature = "agnostic")]
-mod ag {
+mod resolver {
   use super::*;
 
   use agnostic::Runtime;
@@ -31,10 +30,7 @@ mod ag {
 }
 
 #[cfg(not(feature = "agnostic"))]
-pub use nag::SocketAddrResolver;
-
-#[cfg(not(feature = "agnostic"))]
-mod nag {
+mod resolver {
   use super::*;
 
   /// The [`NodeAddressResolver::NodeAddress`] of the [`SocketAddrResolver`] is [`SocketAddr`].

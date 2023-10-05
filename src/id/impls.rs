@@ -3,6 +3,12 @@ mod id;
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub use id::*;
 
+#[cfg(feature = "std")]
+use std::string::String;
+
+#[cfg(not(feature = "std"))]
+use ::alloc::string::String;
+
 #[cfg(feature = "alloc")]
 impl super::NodeId for String {}
 

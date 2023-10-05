@@ -3,9 +3,9 @@ use core::fmt::Display;
 use crate::Transformable;
 
 mod impls;
-#[cfg(feature = "dns")]
+#[cfg(feature = "std")]
 pub(crate) use impls::Kind;
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(feature = "std")]
 pub use impls::{Address, AddressError, ParseAddressError};
 
 /// Node address

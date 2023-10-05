@@ -1,6 +1,6 @@
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(feature = "std")]
 mod address;
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(feature = "std")]
 pub use address::*;
 
 #[cfg(feature = "std")]

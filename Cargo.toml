@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -14,20 +14,21 @@ edition = "2021"
 
 [features]
 default = ["std"]
+full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
 alloc = ["smol_str"]
-std = ["smol_str/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std", "bytes?/std"]
+std = ["alloc", "smol_str/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std", "bytes?/std"]
 
 # enable runtime agnostic features
 agnostic = ["dep:agnostic", "async"]
 
 # enable async features
-async = ["dep:async-trait", "dep:futures"]
+async = ["dep:async-trait", "dep:futures", "alloc"]
 
 # enable dns node address resolver
-dns = ["std", "resolver", "dep:trust-dns-resolver", "dep:crossbeam-skiplist", "async", "agnostic?/dns"]
+dns = ["std", "resolver", "dep:trust-dns-resolver", "crossbeam-skiplist/default", "async", "agnostic/dns"]
 
 # enable node address resolver
-resolver = ["async"]
+resolver = ["async", "crossbeam-skiplist/default", "std"]
 
 serde = ["dep:serde", "smol_str?/serde", "bytes?/serde", "humantime-serde"]
 
