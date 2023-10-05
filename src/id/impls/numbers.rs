@@ -1,15 +1,15 @@
 use super::super::{NodeId, Transformable};
 
-/// Error type for string based node id.
+/// Error type for number based node id.
 #[derive(Debug)]
-pub enum NumberIdError {
+pub enum NumberIdTransformableError {
   /// Returned when the buffer is too small to encode.
   EncodeBufferTooSmall,
   /// Returned when the id is corrupted.
   Corrupted,
 }
 
-impl core::fmt::Display for NumberIdError {
+impl core::fmt::Display for NumberIdTransformableError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::EncodeBufferTooSmall => write!(f, "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"),
@@ -19,7 +19,7 @@ impl core::fmt::Display for NumberIdError {
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for NumberIdError {}
+impl std::error::Error for NumberIdTransformableError {}
 
 macro_rules! impl_number_based_id {
   ($($ty: ty), + $(,)?) => {
@@ -28,7 +28,7 @@ macro_rules! impl_number_based_id {
 
       #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
       impl Transformable for $ty {
-        type Error = NumberIdError;
+        type Error = NumberIdTransformableError;
 
         fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
           const SIZE: usize = core::mem::size_of::<$ty>();

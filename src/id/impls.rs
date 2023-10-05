@@ -16,3 +16,4 @@ impl super::NodeId for String {}
 impl super::NodeId for smol_str::SmolStr {}
 
 mod numbers;
+pub use numbers::NumberIdTransformableError;
