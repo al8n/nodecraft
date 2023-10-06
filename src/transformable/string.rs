@@ -1,4 +1,5 @@
 use super::*;
+use core::borrow::Borrow;
 
 macro_rules! impl_string {
   ($ty: ty) => {
@@ -7,8 +8,8 @@ macro_rules! impl_string {
       type Error = StringTransformableError;
 
       fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
-        encode_bytes(self.as_str().as_bytes(), dst)
-          .map_err(StringTransformableError::from_bytes_error)
+        let src: &str = self.borrow();
+        encode_bytes(src.as_bytes(), dst).map_err(StringTransformableError::from_bytes_error)
       }
 
       /// Encodes the value into the given writer.
@@ -21,7 +22,8 @@ macro_rules! impl_string {
       #[cfg(feature = "std")]
       #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
       fn encode_to_writer<W: std::io::Write>(&self, dst: &mut W) -> std::io::Result<()> {
-        encode_bytes_to(self.as_str().as_bytes(), dst)
+        let src: &str = self.borrow();
+        encode_bytes_to(src.as_bytes(), dst)
       }
 
       /// Encodes the value into the given async writer.
@@ -37,11 +39,13 @@ macro_rules! impl_string {
         &self,
         dst: &mut W,
       ) -> std::io::Result<()> {
-        encode_bytes_to_async(self.as_str().as_bytes(), dst).await
+        let src: &str = self.borrow();
+        encode_bytes_to_async(src.as_bytes(), dst).await
       }
 
       fn encoded_len(&self) -> usize {
-        encoded_bytes_len(self.as_str().as_bytes())
+        let src: &str = self.borrow();
+        encoded_bytes_len(src.as_bytes())
       }
 
       fn decode(src: &[u8]) -> Result<Self, Self::Error>
@@ -104,3 +108,5 @@ macro_rules! impl_string {
 
 impl_string!(String);
 impl_string!(smol_str::SmolStr);
+impl_string!(Box<str>);
+impl_string!(Arc<str>);

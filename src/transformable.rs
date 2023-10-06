@@ -1,15 +1,20 @@
-#[cfg(feature = "bytes")]
+#[cfg(feature = "alloc")]
 mod bytes;
 #[cfg(feature = "alloc")]
 mod string;
 #[cfg(feature = "alloc")]
 mod vec;
 
+#[cfg(feature = "smallvec")]
+mod smallvec;
+
+mod bytes_array;
+
 #[cfg(feature = "std")]
-use std::{string::String, vec::Vec};
+use std::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
-use ::alloc::{string::String, vec::Vec};
+use ::alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
 /// The type can transform its representation between structured and byte form.
 #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
@@ -69,7 +74,6 @@ pub trait Transformable {
 /// The error type for errors that get returned when encoding or decoding fails.
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
-#[cfg(feature = "alloc")]
 pub enum BytesTransformableError {
   /// Returned when the buffer is too small to encode.
   #[cfg_attr(feature = "std", error(
@@ -85,7 +89,7 @@ pub enum BytesTransformableError {
   Custom(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
-#[cfg(all(not(feature = "std"), feature = "alloc"))]
+#[cfg(not(feature = "std"))]
 impl core::fmt::Display for BytesTransformableError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
@@ -98,7 +102,6 @@ impl core::fmt::Display for BytesTransformableError {
   }
 }
 
-#[cfg(feature = "alloc")]
 impl BytesTransformableError {
   /// Create a new `BytesTransformableError::Corrupted` error.
   #[inline]
