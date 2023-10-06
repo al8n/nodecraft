@@ -193,7 +193,6 @@ impl StringTransformableError {
   }
 }
 
-#[cfg(feature = "alloc")]
 const LEGNTH_SIZE: usize = core::mem::size_of::<u32>();
 
 #[cfg(all(feature = "std", feature = "async"))]
@@ -233,7 +232,6 @@ fn decode_bytes(src: &[u8]) -> Result<Vec<u8>, BytesTransformableError> {
   Ok(src[LEGNTH_SIZE..LEGNTH_SIZE + len].to_vec())
 }
 
-#[cfg(feature = "alloc")]
 fn encode_bytes(src: &[u8], dst: &mut [u8]) -> Result<(), BytesTransformableError> {
   let encoded_len = encoded_bytes_len(src);
   if dst.len() < encoded_len {
@@ -264,7 +262,6 @@ async fn encode_bytes_to_async<W: futures::io::AsyncWrite + Unpin>(
   dst.write_all(src).await
 }
 
-#[cfg(feature = "alloc")]
 fn encoded_bytes_len(src: &[u8]) -> usize {
   LEGNTH_SIZE + src.len()
 }
