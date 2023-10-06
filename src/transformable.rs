@@ -230,17 +230,17 @@ fn decode_bytes_from<R: std::io::Read>(src: &mut R) -> std::io::Result<(usize, V
 #[cfg(feature = "alloc")]
 fn decode_bytes(src: &[u8]) -> Result<(usize, Vec<u8>), BytesTransformableError> {
   let len = src.len();
-  if len < core::mem::size_of::<u32>() {
+  if len < LEGNTH_SIZE {
     return Err(BytesTransformableError::Corrupted);
   }
 
-  let len = u32::from_be_bytes([src[0], src[1], src[2], src[3]]) as usize;
-  if len > len - core::mem::size_of::<u32>() {
+  let data_len = u32::from_be_bytes([src[0], src[1], src[2], src[3]]) as usize;
+  if data_len > len - LEGNTH_SIZE {
     return Err(BytesTransformableError::Corrupted);
   }
 
-  let total_len = LEGNTH_SIZE + len;
-  Ok((total_len, src[LEGNTH_SIZE..total_len].to_vec()))
+  let total_len = LEGNTH_SIZE + data_len;
+  Ok((total_len, src[LEGNTH_SIZE..LEGNTH_SIZE + data_len].to_vec()))
 }
 
 #[cfg(feature = "alloc")]
@@ -249,8 +249,9 @@ fn encode_bytes(src: &[u8], dst: &mut [u8]) -> Result<(), BytesTransformableErro
   if dst.len() < encoded_len {
     return Err(BytesTransformableError::EncodeBufferTooSmall);
   }
-  dst[..LEGNTH_SIZE].copy_from_slice(&(encoded_len as u32).to_be_bytes());
-  dst[LEGNTH_SIZE..LEGNTH_SIZE + encoded_len].copy_from_slice(src);
+  let src_len = src.len();
+  dst[..LEGNTH_SIZE].copy_from_slice(&(src_len as u32).to_be_bytes());
+  dst[LEGNTH_SIZE..LEGNTH_SIZE + src_len].copy_from_slice(src);
   Ok(())
 }
 

@@ -291,6 +291,9 @@ const V4_SIZE: usize = 4;
 const MIN_ENCODED_LEN: usize = TAG_SIZE + V4_SIZE + PORT_SIZE;
 const V6_ENCODED_LEN: usize = TAG_SIZE + V6_SIZE + PORT_SIZE;
 
+/// If encoded size less than this value, we can use inline buffer to avoid heap allocation.
+const INLINE: usize = 64;
+
 #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 impl Transformable for Address {
   type Error = AddressError;
@@ -348,16 +351,26 @@ impl Transformable for Address {
         }
       },
       Kind::Domain { safe, .. } => {
-        let mut dst = vec![0; self.encoded_len()];
-        let mut cur = 0;
-        dst[cur] = 0;
-        cur += TAG_SIZE;
-        dst[cur] = safe.len() as u8;
-        cur += DOMAIN_LEN_SIZE;
-        dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
-        cur += safe.len();
-        dst[cur..cur + PORT_SIZE].copy_from_slice(&self.port.to_be_bytes());
-        writer.write_all(&dst)
+        let encoded_len = self.encoded_len();
+        let copy = |dst: &mut [u8]| {
+          let mut cur = 0;
+          dst[cur] = 0;
+          cur += TAG_SIZE;
+          dst[cur] = safe.len() as u8;
+          cur += DOMAIN_LEN_SIZE;
+          dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
+          cur += safe.len();
+          dst[cur..cur + PORT_SIZE].copy_from_slice(&self.port.to_be_bytes());
+        };
+        if encoded_len < INLINE {
+          let mut dst = [0; INLINE];
+          copy(&mut dst[..encoded_len]);
+          writer.write_all(&dst[..encoded_len])
+        } else {
+          let mut dst = vec![0; self.encoded_len()];
+          copy(&mut dst);
+          writer.write_all(&dst)
+        }
       }
     }
   }
@@ -373,31 +386,41 @@ impl Transformable for Address {
     match &self.kind {
       Kind::Ip(addr) => match addr {
         IpAddr::V4(addr) => {
-          let mut dst = [0; 7];
+          let mut dst = [0; MIN_ENCODED_LEN];
           dst[0] = 4;
           dst[1..5].copy_from_slice(&addr.octets());
-          dst[5..7].copy_from_slice(&self.port.to_be_bytes());
+          dst[5..MIN_ENCODED_LEN].copy_from_slice(&self.port.to_be_bytes());
           writer.write_all(&dst).await
         }
         IpAddr::V6(addr) => {
-          let mut dst = [0; 19];
+          let mut dst = [0; V6_ENCODED_LEN];
           dst[0] = 6;
           dst[1..17].copy_from_slice(&addr.octets());
-          dst[17..19].copy_from_slice(&self.port.to_be_bytes());
+          dst[17..V6_ENCODED_LEN].copy_from_slice(&self.port.to_be_bytes());
           writer.write_all(&dst).await
         }
       },
       Kind::Domain { safe, .. } => {
-        let mut dst = vec![0; self.encoded_len()];
-        let mut cur = 0;
-        dst[cur] = 0;
-        cur += TAG_SIZE;
-        dst[cur] = safe.len() as u8;
-        cur += DOMAIN_LEN_SIZE;
-        dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
-        cur += safe.len();
-        dst[cur..cur + PORT_SIZE].copy_from_slice(&self.port.to_be_bytes());
-        writer.write_all(&dst).await
+        let encoded_len = self.encoded_len();
+        let copy = |dst: &mut [u8]| {
+          let mut cur = 0;
+          dst[cur] = 0;
+          cur += TAG_SIZE;
+          dst[cur] = safe.len() as u8;
+          cur += DOMAIN_LEN_SIZE;
+          dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
+          cur += safe.len();
+          dst[cur..cur + PORT_SIZE].copy_from_slice(&self.port.to_be_bytes());
+        };
+        if encoded_len < INLINE {
+          let mut dst = [0; INLINE];
+          copy(&mut dst[..encoded_len]);
+          writer.write_all(&dst[..encoded_len]).await
+        } else {
+          let mut dst = vec![0; self.encoded_len()];
+          copy(&mut dst);
+          writer.write_all(&dst).await
+        }
       }
     }
   }
@@ -475,7 +498,6 @@ impl Transformable for Address {
     reader.read_exact(&mut buf)?;
     match buf[0] {
       0 => {
-        const INLINE: usize = 32;
         const READED: usize = 5;
 
         let len = buf[1] as usize;
@@ -538,7 +560,6 @@ impl Transformable for Address {
     reader.read_exact(&mut buf).await?;
     match buf[0] {
       0 => {
-        const INLINE: usize = 32;
         const READED: usize = 5;
         let len = buf[1] as usize;
         let remaining = len + PORT_SIZE - READED;
