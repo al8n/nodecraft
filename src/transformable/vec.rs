@@ -41,7 +41,7 @@ impl Transformable for Vec<u8> {
     encoded_bytes_len(self.as_ref())
   }
 
-  fn decode(src: &[u8]) -> Result<Self, Self::Error>
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
   where
     Self: Sized,
   {
@@ -57,7 +57,7 @@ impl Transformable for Vec<u8> {
   /// to wrap your orginal reader to cut down the number of I/O times.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn decode_from_reader<R: std::io::Read>(src: &mut R) -> std::io::Result<Self>
+  fn decode_from_reader<R: std::io::Read>(src: &mut R) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
@@ -75,7 +75,7 @@ impl Transformable for Vec<u8> {
   #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
   async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     src: &mut R,
-  ) -> std::io::Result<Self>
+  ) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {

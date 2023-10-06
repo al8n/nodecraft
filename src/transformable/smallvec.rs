@@ -41,11 +41,11 @@ impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
     encoded_bytes_len(self.as_ref())
   }
 
-  fn decode(src: &[u8]) -> Result<Self, Self::Error>
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
   where
     Self: Sized,
   {
-    decode_bytes(src).map(Into::into)
+    decode_bytes(src).map(|(readed, b)| (readed, b.into()))
   }
 
   /// Decodes the value from the given reader.
@@ -57,11 +57,11 @@ impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
   /// to wrap your orginal reader to cut down the number of I/O times.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn decode_from_reader<R: std::io::Read>(src: &mut R) -> std::io::Result<Self>
+  fn decode_from_reader<R: std::io::Read>(src: &mut R) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
-    decode_bytes_from(src).map(Into::into)
+    decode_bytes_from(src).map(|(readed, b)| (readed, b.into()))
   }
 
   /// Decodes the value from the given async reader.
@@ -75,10 +75,12 @@ impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
   #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
   async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     src: &mut R,
-  ) -> std::io::Result<Self>
+  ) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
-    decode_bytes_from_async(src).await.map(Into::into)
+    decode_bytes_from_async(src)
+      .await
+      .map(|(readed, b)| (readed, b.into()))
   }
 }

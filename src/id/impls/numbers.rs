@@ -64,7 +64,7 @@ macro_rules! impl_number_based_id {
           core::mem::size_of::<$ty>()
         }
 
-        fn decode(src: &[u8]) -> Result<Self, Self::Error> where Self: Sized {
+        fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error> where Self: Sized {
           const SIZE: usize = core::mem::size_of::<$ty>();
 
           if src.len() < SIZE {
@@ -72,25 +72,25 @@ macro_rules! impl_number_based_id {
           }
 
           let id = <$ty>::from_be_bytes((&src[..SIZE]).try_into().unwrap());
-          Ok(id)
+          Ok((SIZE, id))
         }
 
         #[cfg(feature = "std")]
         #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-        fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> where Self: Sized {
+        fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<(usize, Self)> where Self: Sized {
           const SIZE: usize = core::mem::size_of::<$ty>();
 
           let mut buf = [0u8; SIZE];
           reader.read_exact(&mut buf)?;
           let id = <$ty>::from_be_bytes(buf);
-          Ok(id)
+          Ok((SIZE, id))
         }
 
         #[cfg(all(feature = "async", feature = "std"))]
         #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
         async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
           reader: &mut R,
-        ) -> std::io::Result<Self>
+        ) -> std::io::Result<(usize, Self)>
         where
           Self: Sized,
         {
@@ -101,7 +101,7 @@ macro_rules! impl_number_based_id {
           let mut buf = [0u8; SIZE];
           reader.read_exact(&mut buf).await?;
           let id = <$ty>::from_be_bytes(buf);
-          Ok(id)
+          Ok((SIZE, id))
         }
       }
     )+

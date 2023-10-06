@@ -115,7 +115,7 @@ impl Transformable for SocketAddr {
     } + core::mem::size_of::<u16>()
   }
 
-  fn decode(src: &[u8]) -> Result<Self, Self::Error>
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
   where
     Self: Sized,
   {
@@ -129,7 +129,7 @@ impl Transformable for SocketAddr {
 
         let ip = std::net::Ipv4Addr::new(src[1], src[2], src[3], src[4]);
         let port = u16::from_be_bytes([src[5], src[6]]);
-        Ok(SocketAddr::from((ip, port)))
+        Ok((MIN_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
       6 => {
         if src.len() < 19 {
@@ -142,7 +142,7 @@ impl Transformable for SocketAddr {
         buf.copy_from_slice(&src[1..17]);
         let ip = std::net::Ipv6Addr::from(buf);
         let port = u16::from_be_bytes([src[17], src[18]]);
-        Ok(SocketAddr::from((ip, port)))
+        Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
       val => Err(SocketAddrTransformableError::UnknownAddressFamily(val)),
     }
@@ -150,7 +150,7 @@ impl Transformable for SocketAddr {
 
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self>
+  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
@@ -162,7 +162,7 @@ impl Transformable for SocketAddr {
       4 => {
         let ip = Ipv4Addr::new(buf[1], buf[2], buf[3], buf[4]);
         let port = u16::from_be_bytes([buf[5], buf[6]]);
-        Ok(SocketAddr::from((ip, port)))
+        Ok((MIN_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
       6 => {
         let mut remaining = [0; V6_ENCODED_LEN - MIN_ENCODED_LEN];
@@ -175,7 +175,7 @@ impl Transformable for SocketAddr {
           remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 2],
           remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 1],
         ]);
-        Ok(SocketAddr::from((ip, port)))
+        Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
       val => Err(invalid_data(
         SocketAddrTransformableError::UnknownAddressFamily(val),
@@ -187,7 +187,7 @@ impl Transformable for SocketAddr {
   #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
   async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     reader: &mut R,
-  ) -> std::io::Result<Self>
+  ) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
@@ -200,7 +200,7 @@ impl Transformable for SocketAddr {
       4 => {
         let ip = Ipv4Addr::new(buf[1], buf[2], buf[3], buf[4]);
         let port = u16::from_be_bytes([buf[5], buf[6]]);
-        Ok(SocketAddr::from((ip, port)))
+        Ok((MIN_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
       6 => {
         let mut remaining = [0; V6_ENCODED_LEN - MIN_ENCODED_LEN];
@@ -213,7 +213,7 @@ impl Transformable for SocketAddr {
           remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 2],
           remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 1],
         ]);
-        Ok(SocketAddr::from((ip, port)))
+        Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
       val => Err(invalid_data(
         SocketAddrTransformableError::UnknownAddressFamily(val),

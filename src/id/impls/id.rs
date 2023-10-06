@@ -1,4 +1,4 @@
-use core::borrow::Borrow;
+use core::{borrow::Borrow, mem};
 
 use smol_str::SmolStr;
 
@@ -101,22 +101,21 @@ impl Id {
 
 #[cfg(feature = "std")]
 const INLINE: usize = 32;
+const LENGTH_SIZE: usize = mem::size_of::<u16>();
 
 #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 impl Transformable for Id {
   type Error = IdTransformableError;
 
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
-    const LENGTH: usize = core::mem::size_of::<u16>();
-
     let encoded_len = self.encoded_len();
     if dst.len() < encoded_len {
       return Err(IdTransformableError::EncodeBufferTooSmall);
     }
 
     let mut cur = 0;
-    dst[cur..cur + LENGTH].copy_from_slice(&(self.0.len() as u16).to_be_bytes());
-    cur += LENGTH;
+    dst[cur..cur + LENGTH_SIZE].copy_from_slice(&(self.0.len() as u16).to_be_bytes());
+    cur += LENGTH_SIZE;
     dst[cur..cur + self.0.len()].copy_from_slice(self.0.as_bytes());
     Ok(())
   }
@@ -158,26 +157,24 @@ impl Transformable for Id {
   }
 
   fn encoded_len(&self) -> usize {
-    core::mem::size_of::<u16>() + self.0.len()
+    LENGTH_SIZE + self.0.len()
   }
 
-  fn decode(src: &[u8]) -> Result<Self, Self::Error>
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
   where
     Self: Sized,
   {
-    const LENGTH: usize = core::mem::size_of::<u16>();
-
-    if src.len() < LENGTH {
+    if src.len() < LENGTH_SIZE {
       return Err(IdTransformableError::Corrupted);
     }
 
     let len = u16::from_be_bytes([src[0], src[1]]) as usize;
-    if src.len() < LENGTH + len {
+    if src.len() < LENGTH_SIZE + len {
       return Err(IdTransformableError::Corrupted);
     }
 
-    let id = Self::new(core::str::from_utf8(&src[LENGTH..LENGTH + len])?)?;
-    Ok(id)
+    let id = Self::new(core::str::from_utf8(&src[LENGTH_SIZE..LENGTH_SIZE + len])?)?;
+    Ok((LENGTH_SIZE + len, id))
   }
 
   /// Decodes the value from the given reader.
@@ -189,7 +186,7 @@ impl Transformable for Id {
   /// to wrap your orginal reader to cut down the number of I/O times.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self>
+  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
@@ -208,13 +205,13 @@ impl Transformable for Id {
       let mut buf = [0; INLINE];
       reader.read_exact(&mut buf[..len])?;
       core::str::from_utf8(&buf[..len])
-        .map(|s| Self(SmolStr::new(s)))
+        .map(|s| (LENGTH_SIZE + len, Self(SmolStr::new(s))))
         .map_err(invalid_data)
     } else {
       let mut buf = vec![0; len];
       reader.read_exact(&mut buf)?;
       core::str::from_utf8(&buf)
-        .map(|s| Self(SmolStr::new(s)))
+        .map(|s| (LENGTH_SIZE + len, Self(SmolStr::new(s))))
         .map_err(invalid_data)
     }
   }
@@ -230,7 +227,7 @@ impl Transformable for Id {
   #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
   async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     reader: &mut R,
-  ) -> std::io::Result<Self>
+  ) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
@@ -251,13 +248,13 @@ impl Transformable for Id {
       let mut buf = [0; INLINE];
       reader.read_exact(&mut buf[..len]).await?;
       core::str::from_utf8(&buf[..len])
-        .map(|s| Self(SmolStr::new(s)))
+        .map(|s| (LENGTH_SIZE + len, Self(SmolStr::new(s))))
         .map_err(invalid_data)
     } else {
       let mut buf = vec![0; len];
       reader.read_exact(&mut buf).await?;
       core::str::from_utf8(&buf)
-        .map(|s| Self(SmolStr::new(s)))
+        .map(|s| (LENGTH_SIZE + len, Self(SmolStr::new(s))))
         .map_err(invalid_data)
     }
   }

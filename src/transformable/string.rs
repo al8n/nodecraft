@@ -48,15 +48,15 @@ macro_rules! impl_string {
         encoded_bytes_len(src.as_bytes())
       }
 
-      fn decode(src: &[u8]) -> Result<Self, Self::Error>
+      fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
       where
         Self: Sized,
       {
         decode_bytes(src)
           .map_err(StringTransformableError::from_bytes_error)
-          .and_then(|bytes| {
+          .and_then(|(readed, bytes)| {
             core::str::from_utf8(bytes.as_ref())
-              .map(Self::from)
+              .map(|s| (readed, Self::from(s)))
               .map_err(Into::into)
           })
       }
@@ -70,13 +70,13 @@ macro_rules! impl_string {
       /// to wrap your orginal reader to cut down the number of I/O times.
       #[cfg(feature = "std")]
       #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-      fn decode_from_reader<R: std::io::Read>(src: &mut R) -> std::io::Result<Self>
+      fn decode_from_reader<R: std::io::Read>(src: &mut R) -> std::io::Result<(usize, Self)>
       where
         Self: Sized,
       {
-        decode_bytes_from(src).and_then(|bytes| {
+        decode_bytes_from(src).and_then(|(readed, bytes)| {
           core::str::from_utf8(bytes.as_ref())
-            .map(Self::from)
+            .map(|s| (readed, Self::from(s)))
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))
         })
       }
@@ -92,15 +92,17 @@ macro_rules! impl_string {
       #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
       async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
         src: &mut R,
-      ) -> std::io::Result<Self>
+      ) -> std::io::Result<(usize, Self)>
       where
         Self: Sized,
       {
-        decode_bytes_from_async(src).await.and_then(|bytes| {
-          core::str::from_utf8(bytes.as_ref())
-            .map(Self::from)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))
-        })
+        decode_bytes_from_async(src)
+          .await
+          .and_then(|(readed, bytes)| {
+            core::str::from_utf8(bytes.as_ref())
+              .map(|s| (readed, Self::from(s)))
+              .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))
+          })
       }
     }
   };

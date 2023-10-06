@@ -128,8 +128,11 @@ impl<'de> serde::Deserialize<'de> for Address {
       <&str as serde::Deserialize>::deserialize(deserializer)
         .and_then(|s| Address::from_str(s).map_err(<D::Error as serde::de::Error>::custom))
     } else {
-      <&[u8] as serde::Deserialize>::deserialize(deserializer)
-        .and_then(|s| Address::decode(s).map_err(<D::Error as serde::de::Error>::custom))
+      <&[u8] as serde::Deserialize>::deserialize(deserializer).and_then(|s| {
+        Address::decode(s)
+          .map(|(_, b)| b)
+          .map_err(<D::Error as serde::de::Error>::custom)
+      })
     }
   }
 }
@@ -409,7 +412,7 @@ impl Transformable for Address {
     }
   }
 
-  fn decode(src: &[u8]) -> Result<Self, Self::Error>
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
   where
     Self: Sized,
   {
@@ -432,8 +435,11 @@ impl Transformable for Address {
         let s = core::str::from_utf8(&src[cur..cur + len])?;
         cur += len;
         let port = u16::from_be_bytes([src[cur], src[cur + 1]]);
+        cur += 2;
         let original = format!("{s}:{port}");
-        Address::from_str(original.as_str()).map_err(Into::into)
+        Address::from_str(original.as_str())
+          .map(|addr| (cur, addr))
+          .map_err(Into::into)
       }
       4 => {
         if src.len() < cur + V4_SIZE + PORT_SIZE {
@@ -442,7 +448,7 @@ impl Transformable for Address {
 
         let ip = Ipv4Addr::new(src[cur], src[cur + 1], src[cur + 2], src[cur + 3]);
         let port = u16::from_be_bytes([src[cur + V4_SIZE], src[cur + V4_SIZE + 1]]);
-        Ok(SocketAddr::from((ip, port)).into())
+        Ok((MIN_ENCODED_LEN, SocketAddr::from((ip, port)).into()))
       }
       6 => {
         if src.len() < cur + V6_SIZE + PORT_SIZE {
@@ -453,7 +459,7 @@ impl Transformable for Address {
         buf.copy_from_slice(&src[cur..cur + V6_SIZE]);
         let ip = Ipv6Addr::from(buf);
         let port = u16::from_be_bytes([src[cur + V6_SIZE], src[cur + V6_SIZE + 1]]);
-        Ok(SocketAddr::from((ip, port)).into())
+        Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port)).into()))
       }
       val => Err(AddressError::UnknownAddressTag(val)),
     }
@@ -461,7 +467,7 @@ impl Transformable for Address {
 
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self>
+  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
@@ -471,6 +477,7 @@ impl Transformable for Address {
       0 => {
         const INLINE: usize = 32;
         const READED: usize = 5;
+
         let len = buf[1] as usize;
         let remaining = len + PORT_SIZE - READED;
         let addr_len = remaining + READED;
@@ -487,24 +494,31 @@ impl Transformable for Address {
           let src = core::str::from_utf8(&addr).map_err(invalid_data)?;
           Address::from_str(src).map_err(invalid_data)
         }
+        .map(|a| (MIN_ENCODED_LEN + remaining, a))
       }
-      4 => Ok(Self {
-        kind: Kind::Ip(IpAddr::V4(Ipv4Addr::new(buf[1], buf[2], buf[3], buf[4]))),
-        port: u16::from_be_bytes([buf[5], buf[6]]),
-      }),
+      4 => Ok((
+        MIN_ENCODED_LEN,
+        Self {
+          kind: Kind::Ip(IpAddr::V4(Ipv4Addr::new(buf[1], buf[2], buf[3], buf[4]))),
+          port: u16::from_be_bytes([buf[5], buf[6]]),
+        },
+      )),
       6 => {
         let mut remaining = [0u8; V6_ENCODED_LEN - MIN_ENCODED_LEN];
         reader.read_exact(&mut remaining)?;
         let mut ipv6 = [0; V6_SIZE];
         ipv6[..6].copy_from_slice(&buf[1..]);
         ipv6[6..].copy_from_slice(&remaining[..V6_ENCODED_LEN - MIN_ENCODED_LEN - 2]);
-        Ok(Self {
-          kind: Kind::Ip(IpAddr::V6(Ipv6Addr::from(ipv6))),
-          port: u16::from_be_bytes([
-            remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 2],
-            remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 1],
-          ]),
-        })
+        Ok((
+          V6_ENCODED_LEN,
+          Self {
+            kind: Kind::Ip(IpAddr::V6(Ipv6Addr::from(ipv6))),
+            port: u16::from_be_bytes([
+              remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 2],
+              remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 1],
+            ]),
+          },
+        ))
       }
       t => Err(invalid_data(AddressError::UnknownAddressTag(t))),
     }
@@ -514,7 +528,7 @@ impl Transformable for Address {
   #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
   async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     reader: &mut R,
-  ) -> std::io::Result<Self>
+  ) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
   {
@@ -544,24 +558,31 @@ impl Transformable for Address {
           let src = core::str::from_utf8(&addr).map_err(invalid_data)?;
           Address::from_str(src).map_err(invalid_data)
         }
+        .map(|a| (MIN_ENCODED_LEN + remaining, a))
       }
-      4 => Ok(Self {
-        kind: Kind::Ip(IpAddr::V4(Ipv4Addr::new(buf[1], buf[2], buf[3], buf[4]))),
-        port: u16::from_be_bytes([buf[5], buf[6]]),
-      }),
+      4 => Ok((
+        MIN_ENCODED_LEN,
+        Self {
+          kind: Kind::Ip(IpAddr::V4(Ipv4Addr::new(buf[1], buf[2], buf[3], buf[4]))),
+          port: u16::from_be_bytes([buf[5], buf[6]]),
+        },
+      )),
       6 => {
         let mut remaining = [0u8; V6_ENCODED_LEN - MIN_ENCODED_LEN];
         reader.read_exact(&mut remaining).await?;
         let mut ipv6 = [0; V6_SIZE];
         ipv6[..6].copy_from_slice(&buf[1..]);
         ipv6[6..].copy_from_slice(&remaining[..V6_ENCODED_LEN - MIN_ENCODED_LEN - 2]);
-        Ok(Self {
-          kind: Kind::Ip(IpAddr::V6(Ipv6Addr::from(ipv6))),
-          port: u16::from_be_bytes([
-            remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 2],
-            remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 1],
-          ]),
-        })
+        Ok((
+          V6_ENCODED_LEN,
+          Self {
+            kind: Kind::Ip(IpAddr::V6(Ipv6Addr::from(ipv6))),
+            port: u16::from_be_bytes([
+              remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 2],
+              remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 1],
+            ]),
+          },
+        ))
       }
       t => Err(invalid_data(AddressError::UnknownAddressTag(t))),
     }

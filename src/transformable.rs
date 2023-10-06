@@ -50,23 +50,29 @@ pub trait Transformable {
   fn encoded_len(&self) -> usize;
 
   /// Decodes the value from the given buffer received over the wire.
-  fn decode(src: &[u8]) -> Result<Self, Self::Error>
+  ///
+  /// Returns the number of bytes read from the buffer and the struct.
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
   where
     Self: Sized;
 
   /// Decodes the value from the given reader received over the wire.
+  ///
+  /// Returns the number of bytes read from the reader and the struct.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self>
+  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<(usize, Self)>
   where
     Self: Sized;
 
   /// Decodes the value from the given async reader received over the wire.
+  ///
+  /// Returns the number of bytes read from the reader and the struct.
   #[cfg(all(feature = "async", feature = "std"))]
   #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
   async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     reader: &mut R,
-  ) -> std::io::Result<Self>
+  ) -> std::io::Result<(usize, Self)>
   where
     Self: Sized;
 }
@@ -198,27 +204,30 @@ const LEGNTH_SIZE: usize = core::mem::size_of::<u32>();
 #[cfg(all(feature = "std", feature = "async"))]
 async fn decode_bytes_from_async<R: futures::io::AsyncRead + Unpin>(
   src: &mut R,
-) -> std::io::Result<Vec<u8>> {
+) -> std::io::Result<(usize, Vec<u8>)> {
   use futures::AsyncReadExt;
 
   let mut len_buf = [0u8; LEGNTH_SIZE];
   src.read_exact(&mut len_buf).await?;
   let len = u32::from_be_bytes(len_buf) as usize;
   let mut buf = vec![0u8; len];
-  src.read_exact(&mut buf).await.map(|_| buf)
+  src
+    .read_exact(&mut buf)
+    .await
+    .map(|_| (len + LEGNTH_SIZE, buf))
 }
 
 #[cfg(feature = "std")]
-fn decode_bytes_from<R: std::io::Read>(src: &mut R) -> std::io::Result<Vec<u8>> {
+fn decode_bytes_from<R: std::io::Read>(src: &mut R) -> std::io::Result<(usize, Vec<u8>)> {
   let mut len_buf = [0u8; LEGNTH_SIZE];
   src.read_exact(&mut len_buf)?;
   let len = u32::from_be_bytes(len_buf) as usize;
   let mut buf = vec![0u8; len];
-  src.read_exact(&mut buf).map(|_| buf)
+  src.read_exact(&mut buf).map(|_| (LEGNTH_SIZE + len, buf))
 }
 
 #[cfg(feature = "alloc")]
-fn decode_bytes(src: &[u8]) -> Result<Vec<u8>, BytesTransformableError> {
+fn decode_bytes(src: &[u8]) -> Result<(usize, Vec<u8>), BytesTransformableError> {
   let len = src.len();
   if len < core::mem::size_of::<u32>() {
     return Err(BytesTransformableError::Corrupted);
@@ -229,7 +238,8 @@ fn decode_bytes(src: &[u8]) -> Result<Vec<u8>, BytesTransformableError> {
     return Err(BytesTransformableError::Corrupted);
   }
 
-  Ok(src[LEGNTH_SIZE..LEGNTH_SIZE + len].to_vec())
+  let total_len = LEGNTH_SIZE + len;
+  Ok((total_len, src[LEGNTH_SIZE..total_len].to_vec()))
 }
 
 fn encode_bytes(src: &[u8], dst: &mut [u8]) -> Result<(), BytesTransformableError> {
