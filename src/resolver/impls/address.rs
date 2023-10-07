@@ -84,6 +84,12 @@ mod resolver {
     _marker: std::marker::PhantomData<R>,
   }
 
+  impl<R: Runtime> Default for NodeAddressResolver<R> {
+    fn default() -> Self {
+      Self::new(Default::default())
+    }
+  }
+
   #[async_trait::async_trait]
   impl<R: Runtime> AddressResolver for NodeAddressResolver<R> {
     type Address = NodeAddress;
@@ -214,6 +220,12 @@ mod resolver {
           ))
         }
       }
+    }
+  }
+
+  impl Default for NodeAddressResolver {
+    fn default() -> Self {
+      Self::new(Default::default())
     }
   }
 

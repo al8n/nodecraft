@@ -17,6 +17,19 @@ mod resolver {
   /// please see [`DnsResolver`](crate::transport::resolver::dns::DnsResolver).
   pub struct SocketAddrResolver<R: Runtime>(std::marker::PhantomData<R>);
 
+  impl<R: Runtime> Default for SocketAddrResolver<R> {
+    fn default() -> Self {
+      Self(std::marker::PhantomData)
+    }
+  }
+  impl<R: Runtime> SocketAddrResolver<R> {
+    /// Creates a new `SocketAddrResolver`.
+    #[inline]
+    pub const fn new() -> Self {
+      Self(std::marker::PhantomData)
+    }
+  }
+
   #[async_trait::async_trait]
   impl<R: Runtime> AddressResolver for SocketAddrResolver<R> {
     type Address = SocketAddr;
@@ -39,6 +52,19 @@ mod resolver {
   /// If you want a more powerful [`AddressResolver`] implementation,
   /// please see [`DnsResolver`](crate::transport::resolver::dns::DnsResolver).
   pub struct SocketAddrResolver;
+
+  impl Default for SocketAddrResolver {
+    fn default() -> Self {
+      Self
+    }
+  }
+
+  impl SocketAddrResolver {
+    /// Creates a new `SocketAddrResolver`.
+    pub const fn new() -> Self {
+      Self
+    }
+  }
 
   #[async_trait::async_trait]
   impl AddressResolver for SocketAddrResolver {
