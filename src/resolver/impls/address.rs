@@ -1,8 +1,8 @@
 use core::time::Duration;
 use std::net::{SocketAddr, ToSocketAddrs};
 
-use super::{super::NodeAddressResolver, CachedSocketAddr};
-use crate::{Address, Kind};
+use super::{super::AddressResolver, CachedSocketAddr};
+use crate::{Kind, NodeAddress};
 
 use crossbeam_skiplist::SkipMap;
 use smol_str::SmolStr;
@@ -10,7 +10,7 @@ use smol_str::SmolStr;
 /// The options used to construct a [`AddressResolver`].
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct AddressResolverOptions {
+pub struct NodeAddressResolverOptions {
   #[cfg_attr(
     feature = "serde",
     serde(with = "humantime_serde", default = "default_record_ttl")
@@ -18,7 +18,7 @@ pub struct AddressResolverOptions {
   record_ttl: Duration,
 }
 
-impl Default for AddressResolverOptions {
+impl Default for NodeAddressResolverOptions {
   fn default() -> Self {
     Self {
       record_ttl: default_record_ttl(),
@@ -30,8 +30,8 @@ const fn default_record_ttl() -> Duration {
   Duration::from_secs(60)
 }
 
-impl AddressResolverOptions {
-  /// Create a new [`AddressResolverOptions`].
+impl NodeAddressResolverOptions {
+  /// Create a new [`NodeAddressResolverOptions`].
   pub fn new() -> Self {
     Self::default()
   }
@@ -53,7 +53,7 @@ impl AddressResolverOptions {
   }
 }
 
-pub use resolver::AddressResolver;
+pub use resolver::NodeAddressResolver;
 
 #[cfg(feature = "agnostic")]
 mod resolver {
@@ -78,19 +78,19 @@ mod resolver {
   /// 2. `[::1]:8080` // ipv6
   /// 3. `127.0.0.1:8080` // ipv4
   ///
-  pub struct AddressResolver<R: Runtime> {
+  pub struct NodeAddressResolver<R: Runtime> {
     cache: SkipMap<SmolStr, CachedSocketAddr>,
     record_ttl: Duration,
     _marker: std::marker::PhantomData<R>,
   }
 
   #[async_trait::async_trait]
-  impl<R: Runtime> NodeAddressResolver for AddressResolver<R> {
-    type NodeAddress = Address;
+  impl<R: Runtime> AddressResolver for NodeAddressResolver<R> {
+    type Address = NodeAddress;
     type Error = std::io::Error;
     type Runtime = R;
 
-    async fn resolve(&self, address: &Self::NodeAddress) -> Result<SocketAddr, Self::Error> {
+    async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       match &address.kind {
         Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
         Kind::Domain { safe, original } => {
@@ -142,9 +142,9 @@ mod resolver {
     }
   }
 
-  impl<R: Runtime> AddressResolver<R> {
-    /// Create a new [`AddressResolver`] with the given options.
-    pub fn new(opts: AddressResolverOptions) -> Self {
+  impl<R: Runtime> NodeAddressResolver<R> {
+    /// Create a new [`NodeAddressResolver`] with the given options.
+    pub fn new(opts: NodeAddressResolverOptions) -> Self {
       Self {
         record_ttl: opts.record_ttl,
         cache: Default::default(),
@@ -175,17 +175,17 @@ mod resolver {
   /// 2. `[::1]:8080` // ipv6
   /// 3. `127.0.0.1:8080` // ipv4
   ///
-  pub struct AddressResolver {
+  pub struct NodeAddressResolver {
     cache: SkipMap<SmolStr, CachedSocketAddr>,
     record_ttl: Duration,
   }
 
   #[async_trait::async_trait]
-  impl NodeAddressResolver for AddressResolver {
-    type NodeAddress = Address;
+  impl AddressResolver for NodeAddressResolver {
+    type Address = NodeAddress;
     type Error = std::io::Error;
 
-    async fn resolve(&self, address: &Self::NodeAddress) -> Result<SocketAddr, Self::Error> {
+    async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       match &address.kind {
         Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
         Kind::Domain { safe, original } => {
@@ -217,9 +217,9 @@ mod resolver {
     }
   }
 
-  impl AddressResolver {
-    /// Create a new [`AddressResolver`] with the given options.
-    pub fn new(opts: AddressResolverOptions) -> Self {
+  impl NodeAddressResolver {
+    /// Create a new [`NodeAddressResolver`] with the given options.
+    pub fn new(opts: NodeAddressResolverOptions) -> Self {
       Self {
         record_ttl: opts.record_ttl,
         cache: Default::default(),

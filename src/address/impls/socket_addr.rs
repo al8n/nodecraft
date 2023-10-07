@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use crate::{NodeAddress, Transformable};
+use crate::{Address, Transformable};
 
 #[cfg(feature = "std")]
 use crate::utils::invalid_data;
@@ -25,7 +25,7 @@ pub enum SocketAddrTransformableError {
   Corrupted(&'static str),
 }
 
-impl NodeAddress for SocketAddr {}
+impl Address for SocketAddr {}
 
 const MIN_ENCODED_LEN: usize = TAG_SIZE + V4_SIZE + PORT_SIZE;
 const V6_ENCODED_LEN: usize = TAG_SIZE + V6_SIZE + PORT_SIZE;

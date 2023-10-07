@@ -1,4 +1,4 @@
-use crate::{NodeAddress, Transformable};
+use crate::{Address, Transformable};
 
 #[cfg(feature = "std")]
 use crate::utils::invalid_data;
@@ -17,10 +17,10 @@ pub(crate) enum Kind {
   Domain { safe: SmolStr, original: SmolStr },
 }
 
-/// An error which can be returned when parsing a [`Address`].
+/// An error which can be returned when parsing a [`NodeAddress`].
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
-pub enum ParseAddressError {
+pub enum ParseNodeAddressError {
   /// Returned if the provided str is missing port.
   #[cfg_attr(feature = "std", error("address is missing port"))]
   MissingPort,
@@ -33,7 +33,7 @@ pub enum ParseAddressError {
 }
 
 #[cfg(not(feature = "std"))]
-impl core::fmt::Display for ParseAddressError {
+impl core::fmt::Display for ParseNodeAddressError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::MissingPort => write!(f, "address is missing port"),
@@ -43,10 +43,10 @@ impl core::fmt::Display for ParseAddressError {
   }
 }
 
-/// An error which can be returned when encoding/decoding a [`Address`].
+/// An error which can be returned when encoding/decoding a [`NodeAddress`].
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
-pub enum AddressError {
+pub enum NodeAddressError {
   /// Returned if the provided buffer is too small.
   #[cfg_attr(
     feature = "std",
@@ -57,7 +57,7 @@ pub enum AddressError {
   EncodeBufferTooSmall,
   /// Returned if fail to parsing the domain address.
   #[cfg_attr(feature = "std", error("{0}"))]
-  ParseAddressError(#[cfg_attr(feature = "std", from)] ParseAddressError),
+  ParseNodeAddressError(#[cfg_attr(feature = "std", from)] ParseNodeAddressError),
   /// Returned if the provided bytes is corrupted.
   #[cfg_attr(feature = "std", error("{0}"))]
   Corrupted(&'static str),
@@ -70,11 +70,11 @@ pub enum AddressError {
 }
 
 #[cfg(not(feature = "std"))]
-impl core::fmt::Display for AddressError {
+impl core::fmt::Display for NodeAddressError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::EncodeBufferTooSmall => write!(f, "buffer is too small, use `Address::encoded_len` to pre-allocate a buffer with enough space"),
-      Self::ParseAddressError(err) => write!(f, "{err}"),
+      Self::ParseNodeAddressError(err) => write!(f, "{err}"),
       Self::Corrupted(msg) => write!(f, "{msg}"),
       Self::UnknownAddressTag(t) => write!(f, "unknown address tag: {t}"),
       Self::Utf8Error(err) => write!(f, "{err}"),
@@ -89,15 +89,15 @@ impl core::fmt::Display for AddressError {
 /// 2. `[::1]:8080`
 /// 3. `127.0.0.1:8080`
 #[derive(PartialEq, Eq, Hash, Clone)]
-pub struct Address {
+pub struct NodeAddress {
   pub(crate) kind: Kind,
   pub(crate) port: u16,
 }
 
-impl NodeAddress for Address {}
+impl Address for NodeAddress {}
 
 #[cfg(feature = "serde")]
-impl serde::Serialize for Address {
+impl serde::Serialize for NodeAddress {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
@@ -119,17 +119,17 @@ impl serde::Serialize for Address {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for Address {
+impl<'de> serde::Deserialize<'de> for NodeAddress {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
   {
     if deserializer.is_human_readable() {
       <&str as serde::Deserialize>::deserialize(deserializer)
-        .and_then(|s| Address::from_str(s).map_err(<D::Error as serde::de::Error>::custom))
+        .and_then(|s| Self::from_str(s).map_err(<D::Error as serde::de::Error>::custom))
     } else {
       <&[u8] as serde::Deserialize>::deserialize(deserializer).and_then(|s| {
-        Address::decode(s)
+        Self::decode(s)
           .map(|(_, b)| b)
           .map_err(<D::Error as serde::de::Error>::custom)
       })
@@ -137,7 +137,7 @@ impl<'de> serde::Deserialize<'de> for Address {
   }
 }
 
-impl From<SocketAddr> for Address {
+impl From<SocketAddr> for NodeAddress {
   fn from(addr: SocketAddr) -> Self {
     Self {
       kind: Kind::Ip(addr.ip()),
@@ -146,7 +146,7 @@ impl From<SocketAddr> for Address {
   }
 }
 
-impl From<(IpAddr, u16)> for Address {
+impl From<(IpAddr, u16)> for NodeAddress {
   fn from(addr: (IpAddr, u16)) -> Self {
     Self {
       kind: Kind::Ip(addr.0),
@@ -155,24 +155,24 @@ impl From<(IpAddr, u16)> for Address {
   }
 }
 
-impl TryFrom<String> for Address {
-  type Error = ParseAddressError;
+impl TryFrom<String> for NodeAddress {
+  type Error = ParseNodeAddressError;
 
   fn try_from(s: String) -> Result<Self, Self::Error> {
-    Address::from_str(s.as_str())
+    Self::from_str(s.as_str())
   }
 }
 
-impl TryFrom<&str> for Address {
-  type Error = ParseAddressError;
+impl TryFrom<&str> for NodeAddress {
+  type Error = ParseNodeAddressError;
 
   fn try_from(value: &str) -> Result<Self, Self::Error> {
-    Address::from_str(value)
+    Self::from_str(value)
   }
 }
 
-impl FromStr for Address {
-  type Err = ParseAddressError;
+impl FromStr for NodeAddress {
+  type Err = ParseNodeAddressError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let res: Result<SocketAddr, _> = s.parse();
@@ -181,13 +181,13 @@ impl FromStr for Address {
       Err(_) => {
         let res: Result<IpAddr, _> = s.parse();
         match res {
-          Ok(_) => Err(ParseAddressError::MissingPort),
+          Ok(_) => Err(ParseNodeAddressError::MissingPort),
           Err(_) => {
             let Some((domain, port)) = s.rsplit_once(':') else {
-              return Err(ParseAddressError::MissingPort);
+              return Err(ParseNodeAddressError::MissingPort);
             };
 
-            let port = port.parse().map_err(ParseAddressError::InvalidPort)?;
+            let port = port.parse().map_err(ParseNodeAddressError::InvalidPort)?;
             idna::domain_to_ascii_strict(domain)
               .map(|mut domain| {
                 // make sure we will only issue one query
@@ -203,7 +203,7 @@ impl FromStr for Address {
                   port,
                 }
               })
-              .map_err(|_| ParseAddressError::InvalidDomain)
+              .map_err(|_| ParseNodeAddressError::InvalidDomain)
           }
         }
       }
@@ -211,8 +211,8 @@ impl FromStr for Address {
   }
 }
 
-impl TryFrom<(&str, u16)> for Address {
-  type Error = ParseAddressError;
+impl TryFrom<(&str, u16)> for NodeAddress {
+  type Error = ParseNodeAddressError;
 
   fn try_from((domain, port): (&str, u16)) -> Result<Self, Self::Error> {
     idna::domain_to_ascii_strict(domain)
@@ -231,11 +231,11 @@ impl TryFrom<(&str, u16)> for Address {
           port,
         }
       })
-      .map_err(|_| ParseAddressError::InvalidDomain)
+      .map_err(|_| ParseNodeAddressError::InvalidDomain)
   }
 }
 
-impl core::fmt::Display for Address {
+impl core::fmt::Display for NodeAddress {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match &self.kind {
       Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
@@ -244,7 +244,7 @@ impl core::fmt::Display for Address {
   }
 }
 
-impl Address {
+impl NodeAddress {
   /// Returns the domain of the address if this address can only be represented by domain name
   pub fn domain(&self) -> Option<&str> {
     match &self.kind {
@@ -295,12 +295,12 @@ const V6_ENCODED_LEN: usize = TAG_SIZE + V6_SIZE + PORT_SIZE;
 const INLINE: usize = 64;
 
 #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
-impl Transformable for Address {
-  type Error = AddressError;
+impl Transformable for NodeAddress {
+  type Error = NodeAddressError;
 
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
     if dst.len() < self.encoded_len() {
-      return Err(AddressError::EncodeBufferTooSmall);
+      return Err(Self::Error::EncodeBufferTooSmall);
     }
 
     match &self.kind {
@@ -440,7 +440,7 @@ impl Transformable for Address {
     Self: Sized,
   {
     if src.len() < TAG_SIZE + DOMAIN_LEN_SIZE {
-      return Err(AddressError::Corrupted("corrupted address"));
+      return Err(Self::Error::Corrupted("corrupted address"));
     }
 
     let mut cur = 0;
@@ -452,7 +452,7 @@ impl Transformable for Address {
         let len = src[cur] as usize;
         cur += DOMAIN_LEN_SIZE;
         if src.len() < cur + len + PORT_SIZE {
-          return Err(AddressError::Corrupted("corrupted address"));
+          return Err(Self::Error::Corrupted("corrupted address"));
         }
 
         let s = core::str::from_utf8(&src[cur..cur + len])?;
@@ -460,13 +460,13 @@ impl Transformable for Address {
         let port = u16::from_be_bytes([src[cur], src[cur + 1]]);
         cur += 2;
         let original = format!("{s}:{port}");
-        Address::from_str(original.as_str())
+        Self::from_str(original.as_str())
           .map(|addr| (cur, addr))
           .map_err(Into::into)
       }
       4 => {
         if src.len() < cur + V4_SIZE + PORT_SIZE {
-          return Err(AddressError::Corrupted("corrupted address"));
+          return Err(Self::Error::Corrupted("corrupted address"));
         }
 
         let ip = Ipv4Addr::new(src[cur], src[cur + 1], src[cur + 2], src[cur + 3]);
@@ -475,7 +475,7 @@ impl Transformable for Address {
       }
       6 => {
         if src.len() < cur + V6_SIZE + PORT_SIZE {
-          return Err(AddressError::Corrupted("corrupted address"));
+          return Err(Self::Error::Corrupted("corrupted address"));
         }
 
         let mut buf = [0u8; V6_SIZE];
@@ -484,7 +484,7 @@ impl Transformable for Address {
         let port = u16::from_be_bytes([src[cur + V6_SIZE], src[cur + V6_SIZE + 1]]);
         Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port)).into()))
       }
-      val => Err(AddressError::UnknownAddressTag(val)),
+      val => Err(Self::Error::UnknownAddressTag(val)),
     }
   }
 
@@ -508,13 +508,13 @@ impl Transformable for Address {
           domain[..READED].copy_from_slice(&buf[2..]);
           reader.read_exact(&mut domain[READED..READED + remaining])?;
           let src = core::str::from_utf8(&domain).map_err(invalid_data)?;
-          Address::from_str(src).map_err(invalid_data)
+          Self::from_str(src).map_err(invalid_data)
         } else {
           let mut addr = vec![0; addr_len];
           addr[..READED].copy_from_slice(&buf[2..]);
           reader.read_exact(&mut addr[READED..])?;
           let src = core::str::from_utf8(&addr).map_err(invalid_data)?;
-          Address::from_str(src).map_err(invalid_data)
+          Self::from_str(src).map_err(invalid_data)
         }
         .map(|a| (MIN_ENCODED_LEN + remaining, a))
       }
@@ -542,7 +542,7 @@ impl Transformable for Address {
           },
         ))
       }
-      t => Err(invalid_data(AddressError::UnknownAddressTag(t))),
+      t => Err(invalid_data(Self::Error::UnknownAddressTag(t))),
     }
   }
 
@@ -571,13 +571,13 @@ impl Transformable for Address {
             .read_exact(&mut domain[READED..READED + remaining])
             .await?;
           let src = core::str::from_utf8(&domain).map_err(invalid_data)?;
-          Address::from_str(src).map_err(invalid_data)
+          Self::from_str(src).map_err(invalid_data)
         } else {
           let mut addr = vec![0; addr_len];
           addr[..READED].copy_from_slice(&buf[2..]);
           reader.read_exact(&mut addr[READED..]).await?;
           let src = core::str::from_utf8(&addr).map_err(invalid_data)?;
-          Address::from_str(src).map_err(invalid_data)
+          Self::from_str(src).map_err(invalid_data)
         }
         .map(|a| (MIN_ENCODED_LEN + remaining, a))
       }
@@ -605,7 +605,7 @@ impl Transformable for Address {
           },
         ))
       }
-      t => Err(invalid_data(AddressError::UnknownAddressTag(t))),
+      t => Err(invalid_data(Self::Error::UnknownAddressTag(t))),
     }
   }
 }

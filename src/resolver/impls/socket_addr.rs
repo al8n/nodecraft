@@ -1,6 +1,6 @@
 use std::{convert::Infallible, net::SocketAddr};
 
-use super::super::NodeAddressResolver;
+use super::super::AddressResolver;
 
 pub use resolver::SocketAddrResolver;
 
@@ -10,20 +10,20 @@ mod resolver {
 
   use agnostic::Runtime;
 
-  /// The [`NodeAddressResolver::NodeAddress`] of the [`SocketAddrResolver`] is [`SocketAddr`].
+  /// The [`AddressResolver::Address`] of the [`SocketAddrResolver`] is [`SocketAddr`].
   /// So it just returns the given address and impossible to return an error.
   ///
-  /// If you want a more powerful [`NodeAddressResolver`] implementation,
+  /// If you want a more powerful [`AddressResolver`] implementation,
   /// please see [`DnsResolver`](crate::transport::resolver::dns::DnsResolver).
   pub struct SocketAddrResolver<R: Runtime>(std::marker::PhantomData<R>);
 
   #[async_trait::async_trait]
-  impl<R: Runtime> NodeAddressResolver for SocketAddrResolver<R> {
-    type NodeAddress = SocketAddr;
+  impl<R: Runtime> AddressResolver for SocketAddrResolver<R> {
+    type Address = SocketAddr;
     type Error = Infallible;
     type Runtime = R;
 
-    async fn resolve(&self, address: &Self::NodeAddress) -> Result<SocketAddr, Self::Error> {
+    async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       Ok(*address)
     }
   }
@@ -33,19 +33,19 @@ mod resolver {
 mod resolver {
   use super::*;
 
-  /// The [`NodeAddressResolver::NodeAddress`] of the [`SocketAddrResolver`] is [`SocketAddr`].
+  /// The [`AddressResolver::Address`] of the [`SocketAddrResolver`] is [`SocketAddr`].
   /// So it just returns the given address and impossible to return an error.
   ///
-  /// If you want a more powerful [`NodeAddressResolver`] implementation,
+  /// If you want a more powerful [`AddressResolver`] implementation,
   /// please see [`DnsResolver`](crate::transport::resolver::dns::DnsResolver).
   pub struct SocketAddrResolver;
 
   #[async_trait::async_trait]
-  impl NodeAddressResolver for SocketAddrResolver {
-    type NodeAddress = SocketAddr;
+  impl AddressResolver for SocketAddrResolver {
+    type Address = SocketAddr;
     type Error = Infallible;
 
-    async fn resolve(&self, address: &Self::NodeAddress) -> Result<SocketAddr, Self::Error> {
+    async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       Ok(*address)
     }
   }

@@ -2,15 +2,15 @@ use core::{borrow::Borrow, mem};
 
 use smol_str::SmolStr;
 
-use crate::{NodeId, Transformable};
+use crate::{Id, Transformable};
 
 #[cfg(feature = "std")]
 use crate::utils::invalid_data;
 
-/// Errors that can occur when transforming an `Id`.
+/// Errors that can occur when transforming an [`NodeId`].
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
-pub enum IdTransformableError {
+pub enum NodeIdTransformableError {
   /// Returned when the id is empty.
   #[cfg_attr(feature = "std", error("id cannot be empty"))]
   Empty,
@@ -35,14 +35,14 @@ pub enum IdTransformableError {
 }
 
 #[cfg(not(feature = "std"))]
-impl core::convert::From<core::str::Utf8Error> for IdTransformableError {
+impl core::convert::From<core::str::Utf8Error> for NodeIdTransformableError {
   fn from(err: core::str::Utf8Error) -> Self {
     Self::Utf8Error(err)
   }
 }
 
 #[cfg(not(feature = "std"))]
-impl core::fmt::Display for IdTransformableError {
+impl core::fmt::Display for NodeIdTransformableError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::Empty => write!(f, "id cannot be empty"),
@@ -65,23 +65,23 @@ impl core::fmt::Display for IdTransformableError {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
-pub struct Id(SmolStr);
+pub struct NodeId(SmolStr);
 
-impl NodeId for Id {}
+impl Id for NodeId {}
 
-impl Id {
+impl NodeId {
   /// The maximum length of an id is 512 bytes.
   pub const MAX_SIZE: usize = 512;
 
   /// Creates a new `Id` from the source.
-  pub fn new<T: AsRef<str>>(src: T) -> Result<Self, IdTransformableError> {
+  pub fn new<T: AsRef<str>>(src: T) -> Result<Self, NodeIdTransformableError> {
     let src = src.as_ref();
     if src.is_empty() {
-      return Err(IdTransformableError::Empty);
+      return Err(NodeIdTransformableError::Empty);
     }
 
     if src.len() > Self::MAX_SIZE {
-      return Err(IdTransformableError::TooLarge(src.len()));
+      return Err(NodeIdTransformableError::TooLarge(src.len()));
     }
 
     Ok(Self(SmolStr::new(src)))
@@ -104,13 +104,13 @@ const INLINE: usize = 64;
 const LENGTH_SIZE: usize = mem::size_of::<u16>();
 
 #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
-impl Transformable for Id {
-  type Error = IdTransformableError;
+impl Transformable for NodeId {
+  type Error = NodeIdTransformableError;
 
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
     let encoded_len = self.encoded_len();
     if dst.len() < encoded_len {
-      return Err(IdTransformableError::EncodeBufferTooSmall);
+      return Err(NodeIdTransformableError::EncodeBufferTooSmall);
     }
 
     let mut cur = 0;
@@ -165,12 +165,12 @@ impl Transformable for Id {
     Self: Sized,
   {
     if src.len() < LENGTH_SIZE {
-      return Err(IdTransformableError::Corrupted);
+      return Err(NodeIdTransformableError::Corrupted);
     }
 
     let len = u16::from_be_bytes([src[0], src[1]]) as usize;
     if src.len() < LENGTH_SIZE + len {
-      return Err(IdTransformableError::Corrupted);
+      return Err(NodeIdTransformableError::Corrupted);
     }
 
     let id = Self::new(core::str::from_utf8(&src[LENGTH_SIZE..LENGTH_SIZE + len])?)?;
@@ -194,11 +194,11 @@ impl Transformable for Id {
     reader.read_exact(&mut len_buf)?;
     let len = u16::from_be_bytes(len_buf) as usize;
     if len == 0 {
-      return Err(invalid_data(IdTransformableError::Empty));
+      return Err(invalid_data(NodeIdTransformableError::Empty));
     }
 
     if len > Self::MAX_SIZE {
-      return Err(invalid_data(IdTransformableError::TooLarge(len)));
+      return Err(invalid_data(NodeIdTransformableError::TooLarge(len)));
     }
 
     if len < INLINE {
@@ -237,11 +237,11 @@ impl Transformable for Id {
     reader.read_exact(&mut len_buf).await?;
     let len = u16::from_be_bytes(len_buf) as usize;
     if len == 0 {
-      return Err(invalid_data(IdTransformableError::Empty));
+      return Err(invalid_data(NodeIdTransformableError::Empty));
     }
 
     if len > Self::MAX_SIZE {
-      return Err(invalid_data(IdTransformableError::TooLarge(len)));
+      return Err(invalid_data(NodeIdTransformableError::TooLarge(len)));
     }
 
     if len < INLINE {
@@ -260,33 +260,33 @@ impl Transformable for Id {
   }
 }
 
-impl core::str::FromStr for Id {
-  type Err = IdTransformableError;
+impl core::str::FromStr for NodeId {
+  type Err = NodeIdTransformableError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     Self::new(s)
   }
 }
 
-impl Borrow<str> for Id {
+impl Borrow<str> for NodeId {
   fn borrow(&self) -> &str {
     self.as_str()
   }
 }
 
-impl AsRef<str> for Id {
+impl AsRef<str> for NodeId {
   fn as_ref(&self) -> &str {
     self.0.as_ref()
   }
 }
 
-impl core::fmt::Display for Id {
+impl core::fmt::Display for NodeId {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     self.0.fmt(f)
   }
 }
 
-impl core::fmt::Debug for Id {
+impl core::fmt::Debug for NodeId {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     self.0.fmt(f)
   }

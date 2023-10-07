@@ -17,7 +17,7 @@ pub(crate) mod utils;
 pub use address::*;
 pub use id::*;
 
-/// `NodeAddressResolver` trait for async.
+/// `AddressResolver` trait for async.
 #[cfg(feature = "resolver")]
 #[cfg_attr(docsrs, doc(cfg(feature = "resolver")))]
 pub mod resolver;

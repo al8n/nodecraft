@@ -14,9 +14,9 @@ use crossbeam_skiplist::SkipMap;
 
 use smol_str::SmolStr;
 
-use crate::{Address, Kind};
+use crate::{Kind, NodeAddress};
 
-use super::{super::NodeAddressResolver, CachedSocketAddr};
+use super::{super::AddressResolver, CachedSocketAddr};
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
@@ -192,12 +192,12 @@ impl<R: Runtime> DnsResolver<R> {
 }
 
 #[async_trait::async_trait]
-impl<R: Runtime> NodeAddressResolver for DnsResolver<R> {
-  type NodeAddress = Address;
+impl<R: Runtime> AddressResolver for DnsResolver<R> {
+  type Address = NodeAddress;
   type Error = Error;
   type Runtime = R;
 
-  async fn resolve(&self, address: &Self::NodeAddress) -> Result<SocketAddr, Self::Error> {
+  async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
     match &address.kind {
       Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
       Kind::Domain { safe, original } => {

@@ -10,16 +10,16 @@ use std::{boxed::Box, string::String, sync::Arc};
 use ::alloc::{boxed::Box, string::String, sync::Arc};
 
 #[cfg(feature = "alloc")]
-impl super::NodeId for String {}
+impl super::Id for String {}
 
 #[cfg(feature = "alloc")]
-impl super::NodeId for Box<str> {}
+impl super::Id for Box<str> {}
 
 #[cfg(feature = "alloc")]
-impl super::NodeId for Arc<str> {}
+impl super::Id for Arc<str> {}
 
 #[cfg(feature = "smol_str")]
-impl super::NodeId for smol_str::SmolStr {}
+impl super::Id for smol_str::SmolStr {}
 
 mod numbers;
 pub use numbers::NumberIdTransformableError;

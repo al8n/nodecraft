@@ -3,10 +3,9 @@ use core::{fmt::Display, hash::Hash};
 use crate::Transformable;
 
 mod impls;
-#[cfg(any(feature = "std", feature = "alloc"))]
-pub use impls::{Id, IdTransformableError};
-
 pub use impls::NumberIdTransformableError;
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use impls::{NodeId, NodeIdTransformableError};
 
-/// Node id
-pub trait NodeId: Clone + Eq + Hash + Display + Transformable {}
+/// Id abstraction for distributed systems
+pub trait Id: Clone + Eq + Hash + Display + Transformable {}

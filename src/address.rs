@@ -6,7 +6,7 @@ mod impls;
 #[cfg(feature = "resolver")]
 pub(crate) use impls::Kind;
 #[cfg(feature = "std")]
-pub use impls::{Address, AddressError, ParseAddressError};
+pub use impls::{NodeAddress, NodeAddressError, ParseNodeAddressError};
 
-/// Node address
-pub trait NodeAddress: Clone + Eq + Display + Transformable {}
+/// Address abstraction for distributed systems
+pub trait Address: Clone + Eq + Display + Transformable {}

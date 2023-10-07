@@ -1,6 +1,6 @@
-use super::super::{NodeId, Transformable};
+use super::super::{Id, Transformable};
 
-/// Error type for number based node id.
+/// Error type for transformable numbers.
 #[derive(Debug)]
 pub enum NumberIdTransformableError {
   /// Returned when the buffer is too small to encode.
@@ -24,7 +24,7 @@ impl std::error::Error for NumberIdTransformableError {}
 macro_rules! impl_number_based_id {
   ($($ty: ty), + $(,)?) => {
     $(
-      impl NodeId for $ty {}
+      impl Id for $ty {}
 
       #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
       impl Transformable for $ty {
