@@ -9,4 +9,7 @@ pub(crate) use impls::Kind;
 pub use impls::{NodeAddress, NodeAddressError, ParseNodeAddressError};
 
 /// Address abstraction for distributed systems
-pub trait Address: Clone + Eq + core::hash::Hash + Display + Transformable {}
+pub trait Address:
+  Clone + Eq + core::hash::Hash + Display + Transformable + Sized + 'static
+{
+}

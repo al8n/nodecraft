@@ -8,4 +8,4 @@ pub use impls::NumberIdTransformableError;
 pub use impls::{NodeId, NodeIdTransformableError};
 
 /// Id abstraction for distributed systems
-pub trait Id: Clone + Eq + Hash + Display + Transformable {}
+pub trait Id: Clone + Eq + Hash + Display + Transformable + Sized + 'static {}
