@@ -39,10 +39,10 @@ pub trait Transformable {
   /// Encodes the value into the given async writer for transmission.
   #[cfg(all(feature = "async", feature = "std"))]
   #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
-  async fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
+  fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> std::io::Result<()>;
+  ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
 
   /// Returns the encoded length of the value.
   /// This is used to pre-allocate a buffer for encoding.
@@ -69,9 +69,9 @@ pub trait Transformable {
   /// Returns the number of bytes read from the reader and the struct.
   #[cfg(all(feature = "async", feature = "std"))]
   #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
-  async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
+  fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     reader: &mut R,
-  ) -> std::io::Result<(usize, Self)>
+  ) -> impl std::future::Future<Output = std::io::Result<(usize, Self)>> + Send
   where
     Self: Sized;
 }

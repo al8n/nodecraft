@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{future::Future, net::SocketAddr};
 
 use crate::Address;
 
@@ -14,7 +14,10 @@ pub trait AddressResolver: Send + Sync + 'static {
   type Error: std::error::Error + Send + Sync + 'static;
 
   /// Resolves the given node address to a [`SocketAddr`].
-  async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error>;
+  fn resolve(
+    &self,
+    address: &Self::Address,
+  ) -> impl Future<Output = Result<SocketAddr, Self::Error>> + Send;
 }
 
 #[cfg(feature = "agnostic")]
@@ -29,5 +32,8 @@ pub trait AddressResolver: Send + Sync + 'static {
   type Runtime: agnostic::Runtime;
 
   /// Resolves the given node address to a [`SocketAddr`].
-  async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error>;
+  fn resolve(
+    &self,
+    address: &Self::Address,
+  ) -> impl Future<Output = Result<SocketAddr, Self::Error>> + Send;
 }
