@@ -17,7 +17,6 @@ use std::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use ::alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
 /// The type can transform its representation between structured and byte form.
-#[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 pub trait Transformable {
   /// The error type returned when encoding or decoding fails.
   #[cfg(feature = "std")]

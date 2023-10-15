@@ -26,7 +26,6 @@ macro_rules! impl_number_based_id {
     $(
       impl Id for $ty {}
 
-      #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
       impl Transformable for $ty {
         type Error = NumberIdTransformableError;
 

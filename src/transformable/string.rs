@@ -3,7 +3,6 @@ use core::borrow::Borrow;
 
 macro_rules! impl_string {
   ($ty: ty) => {
-    #[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
     impl Transformable for $ty {
       type Error = StringTransformableError;
 

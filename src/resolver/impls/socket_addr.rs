@@ -30,7 +30,6 @@ mod resolver {
     }
   }
 
-  #[async_trait::async_trait]
   impl<R: Runtime> AddressResolver for SocketAddrResolver<R> {
     type Address = SocketAddr;
     type Error = Infallible;
@@ -66,7 +65,6 @@ mod resolver {
     }
   }
 
-  #[async_trait::async_trait]
   impl AddressResolver for SocketAddrResolver {
     type Address = SocketAddr;
     type Error = Infallible;

@@ -1,6 +1,5 @@
 use super::*;
 
-#[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 impl<const N: usize> Transformable for [u8; N] {
   type Error = BytesTransformableError;
 

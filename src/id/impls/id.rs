@@ -103,7 +103,6 @@ impl NodeId {
 const INLINE: usize = 64;
 const LENGTH_SIZE: usize = mem::size_of::<u16>();
 
-#[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 impl Transformable for NodeId {
   type Error = NodeIdTransformableError;
 

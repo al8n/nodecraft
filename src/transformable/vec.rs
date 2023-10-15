@@ -1,6 +1,5 @@
 use super::*;
 
-#[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 impl Transformable for Vec<u8> {
   type Error = BytesTransformableError;
 

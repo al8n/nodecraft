@@ -191,7 +191,6 @@ impl<R: Runtime> DnsResolver<R> {
   }
 }
 
-#[async_trait::async_trait]
 impl<R: Runtime> AddressResolver for DnsResolver<R> {
   type Address = NodeAddress;
   type Error = Error;

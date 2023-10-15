@@ -34,7 +34,6 @@ const V4_SIZE: usize = 4;
 const TAG_SIZE: usize = 1;
 const PORT_SIZE: usize = core::mem::size_of::<u16>();
 
-#[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 impl Transformable for SocketAddr {
   type Error = SocketAddrTransformableError;
 

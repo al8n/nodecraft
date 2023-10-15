@@ -90,7 +90,6 @@ mod resolver {
     }
   }
 
-  #[async_trait::async_trait]
   impl<R: Runtime> AddressResolver for NodeAddressResolver<R> {
     type Address = NodeAddress;
     type Error = std::io::Error;
@@ -186,7 +185,6 @@ mod resolver {
     record_ttl: Duration,
   }
 
-  #[async_trait::async_trait]
   impl AddressResolver for NodeAddressResolver {
     type Address = NodeAddress;
     type Error = std::io::Error;

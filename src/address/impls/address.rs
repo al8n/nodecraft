@@ -294,7 +294,6 @@ const V6_ENCODED_LEN: usize = TAG_SIZE + V6_SIZE + PORT_SIZE;
 /// If encoded size less than this value, we can use inline buffer to avoid heap allocation.
 const INLINE: usize = 64;
 
-#[cfg_attr(all(feature = "async", feature = "std"), async_trait::async_trait)]
 impl Transformable for NodeAddress {
   type Error = NodeAddressError;
 
