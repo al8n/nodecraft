@@ -83,7 +83,7 @@ jobs:
         path: ~/.cargo
         key: ${{ runner.os }}-coverage-dotcargo
     - name: Run build
-      run: cargo hack build --feature-powerset
+      run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-openssl,dns-over-openssl,dns-over-native-tls --exclude-features tracing
   
   test:
     name: test
@@ -107,7 +107,7 @@ jobs:
         path: ~/.cargo
         key: ${{ runner.os }}-coverage-dotcargo
     - name: Run test
-      run: cargo hack test --feature-powerset
+      run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-openssl,dns-over-openssl,dns-over-native-tls --exclude-features tracing
 
   coverage:
     name: coverage
