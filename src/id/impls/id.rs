@@ -290,3 +290,5 @@ impl core::fmt::Debug for NodeId {
     self.0.fmt(f)
   }
 }
+
+impl cheap_clone::CheapClone for NodeId {}

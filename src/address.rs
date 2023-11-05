@@ -1,8 +1,9 @@
-use core::fmt::Display;
+use core::fmt::{Debug, Display};
 
 use crate::Transformable;
 
 mod impls;
+use cheap_clone::CheapClone;
 #[cfg(feature = "resolver")]
 pub(crate) use impls::Kind;
 #[cfg(feature = "std")]
@@ -10,6 +11,6 @@ pub use impls::{NodeAddress, NodeAddressError, ParseNodeAddressError};
 
 /// Address abstraction for distributed systems
 pub trait Address:
-  Clone + Eq + core::hash::Hash + Display + Transformable + Sized + 'static
+  CheapClone + Eq + core::hash::Hash + Debug + Display + Transformable + Sized + 'static
 {
 }

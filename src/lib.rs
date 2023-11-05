@@ -27,3 +27,5 @@ pub use futures;
 
 mod transformable;
 pub use transformable::*;
+
+pub use cheap_clone::CheapClone;

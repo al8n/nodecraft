@@ -21,12 +21,12 @@ pub trait Transformable {
   /// The error type returned when encoding or decoding fails.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  type Error: std::error::Error + Send + Sync + 'static;
+  type Error: std::error::Error;
 
   /// The error type returned when encoding or decoding fails.
   #[cfg(not(feature = "std"))]
   #[cfg_attr(docsrs, doc(cfg(not(feature = "std"))))]
-  type Error: core::fmt::Display + Send + Sync + 'static;
+  type Error: core::fmt::Display;
 
   /// Encodes the value into the given buffer for transmission.
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error>;
