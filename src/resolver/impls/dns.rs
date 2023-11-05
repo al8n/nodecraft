@@ -11,7 +11,7 @@ use agnostic::{
 };
 use crossbeam_skiplist::SkipMap;
 use smol_str::SmolStr;
-pub use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
+pub use hickory_resolver::config::{ResolverConfig, ResolverOpts};
 
 use super::{super::AddressResolver, CachedSocketAddr};
 use crate::{Kind, NodeAddress};
@@ -21,7 +21,7 @@ enum ResolveErrorKind {
   #[error("cannot resolve an ip address for {0}")]
   NotFound(SmolStr),
   #[error("{0}")]
-  Resolve(#[from] trust_dns_resolver::error::ResolveError),
+  Resolve(#[from] hickory_resolver::error::ResolveError),
 }
 
 /// The error type for errors that get returned when resolving fails
