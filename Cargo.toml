@@ -27,6 +27,9 @@ async = ["dep:futures", "alloc"]
 
 # enable dns node address resolver
 dns = ["std", "resolver", "dep:trust-dns-resolver", "crossbeam-skiplist/default", "async", "agnostic/dns"]
+dns-over-tls = ["dns", "trust-dns-resolver/dns-over-tls"]
+dns-over-https = ["dns", "trust-dns-resolver/dns-over-https"]
+dns-over-rustls = ["dns", "trust-dns-resolver/dns-over-rustls"]
 
 # enable node address resolver
 resolver = ["async", "crossbeam-skiplist/default", "std"]
@@ -39,7 +42,7 @@ tracing = ["dep:tracing"]
 [dependencies]
 cheap-clone = { version = "0.1", default-features = false, features = ["smol_str"] }
 
-agnostic = { version = "0.1.21", optional = true }
+agnostic = { version = "0.2", optional = true }
 bytes = { version = "1.5", default-features = false, optional = true }
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "1", optional = true }
