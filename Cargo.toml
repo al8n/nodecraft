@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.1.7"
+version = "0.2.0"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -16,8 +16,8 @@ rust-version = "1.75.0"
 [features]
 default = ["std"]
 full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
-alloc = ["smol_str"]
-std = ["alloc", "smol_str/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std", "bytes?/std"]
+alloc = ["smol_str", "cheap-clone/alloc"]
+std = ["alloc", "cheap-clone/std", "smol_str/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std", "bytes?/std"]
 
 # enable runtime agnostic features
 agnostic = ["dep:agnostic", "async"]
@@ -31,12 +31,14 @@ dns = ["std", "resolver", "dep:trust-dns-resolver", "crossbeam-skiplist/default"
 # enable node address resolver
 resolver = ["async", "crossbeam-skiplist/default", "std"]
 
-serde = ["dep:serde", "smol_str?/serde", "bytes?/serde", "humantime-serde", "smallvec?/serde"]
+serde = ["dep:serde", "smol_str?/serde", "bytes?/serde", "humantime-serde", "smallvec?/serde", "trust-dns-resolver?/serde-config"]
 
 # enable tracing
 tracing = ["dep:tracing"]
 
 [dependencies]
+cheap-clone = { version = "0.1", default-features = false, features = ["smol_str"] }
+
 agnostic = { version = "0.1.21", optional = true }
 bytes = { version = "1.5", default-features = false, optional = true }
 futures = { version = "0.3", default-features = false, optional = true }

@@ -11,7 +11,7 @@ use std::{
 
 use smol_str::SmolStr;
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Kind {
   Ip(IpAddr),
   Domain { safe: SmolStr, original: SmolStr },
@@ -88,7 +88,7 @@ impl core::fmt::Display for NodeAddressError {
 /// 1. `www.example.com:8080`
 /// 2. `[::1]:8080`
 /// 3. `127.0.0.1:8080`
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct NodeAddress {
   pub(crate) kind: Kind,
   pub(crate) port: u16,
@@ -608,3 +608,5 @@ impl Transformable for NodeAddress {
     }
   }
 }
+
+impl cheap_clone::CheapClone for NodeAddress {}

@@ -2,21 +2,19 @@ use core::time::Duration;
 use std::{
   io,
   net::{SocketAddr, ToSocketAddrs},
-  path::PathBuf,
 };
 
+pub use agnostic::net::dns::read_resolv_conf;
 use agnostic::{
-  net::dns::{read_resolv_conf, AsyncConnectionProvider, Dns},
+  net::dns::{AsyncConnectionProvider, Dns},
   Runtime,
 };
-
 use crossbeam_skiplist::SkipMap;
-
 use smol_str::SmolStr;
-
-use crate::{Kind, NodeAddress};
+pub use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
 
 use super::{super::AddressResolver, CachedSocketAddr};
+use crate::{Kind, NodeAddress};
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
@@ -60,13 +58,8 @@ pub enum Error {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DnsResolverOptions {
-  dns_config_path: Option<PathBuf>,
-
-  #[cfg_attr(
-    feature = "serde",
-    serde(with = "humantime_serde", default = "default_record_ttl")
-  )]
-  record_ttl: Duration,
+  resolver_opts: ResolverOpts,
+  resolver_config: ResolverConfig,
 }
 
 const fn default_record_ttl() -> Duration {
@@ -74,65 +67,50 @@ const fn default_record_ttl() -> Duration {
 }
 
 impl DnsResolverOptions {
-  /// Create a new [`DnsResolverOptions`] with the default DNS configuration path.
-  ///
-  /// Default DNS configuration path:
-  /// 1. `Some(PathBuf::from("/etc/resolv.conf"))` for UNIX
-  /// 2. `None` on other OS
+  /// Create a new [`DnsResolverOptions`] with the default DNS configurations.
   pub fn new() -> Self {
-    Self::default()
+    Self {
+      resolver_opts: ResolverOpts::default(),
+      resolver_config: ResolverConfig::default(),
+    }
   }
 
-  /// Set the default dns configuration file path in builder pattern
-  pub fn with_dns_config(mut self, p: Option<PathBuf>) -> Self {
-    self.dns_config_path = p;
+  /// Set the default dns configuration in builder pattern
+  pub fn with_resolver_config(mut self, c: ResolverConfig) -> Self {
+    self.resolver_config = c;
     self
   }
 
-  /// Set the default dns configuration file path
-  pub fn set_dns_config(&mut self, p: Option<PathBuf>) {
-    self.dns_config_path = p;
+  /// Set the default dns configuration
+  pub fn set_resolver_config(&mut self, c: ResolverConfig) {
+    self.resolver_config = c;
   }
 
-  /// Returns the default dns configuration file path, if any.
-  pub fn dns_config(&self) -> Option<&PathBuf> {
-    self.dns_config_path.as_ref()
+  /// Returns the resolver configuration
+  pub fn resolver_config(&self) -> &ResolverConfig {
+    &self.resolver_config
   }
 
-  /// Set the DNS record ttl in builder pattern
-  pub const fn with_record_ttl(mut self, val: Duration) -> Self {
-    self.record_ttl = val;
+  /// Set the default resolver options in builder pattern
+  pub fn with_resolver_opts(mut self, o: ResolverOpts) -> Self {
+    self.resolver_opts = o;
     self
   }
 
-  /// Set the DNS record ttl
-  pub fn set_record_ttl(&mut self, val: Duration) {
-    self.record_ttl = val;
+  /// Set the default resolver options
+  pub fn set_resolver_opts(&mut self, o: ResolverOpts) {
+    self.resolver_opts = o;
   }
 
-  /// Returns the DNS record ttl
-  pub const fn record_ttl(&self) -> Duration {
-    self.record_ttl
-  }
-}
-
-#[cfg(unix)]
-impl Default for DnsResolverOptions {
-  fn default() -> Self {
-    Self {
-      dns_config_path: Some(PathBuf::from("/etc/resolv.conf")),
-      record_ttl: default_record_ttl(),
-    }
+  /// Returns the resolver options
+  pub fn resolver_opts(&self) -> &ResolverOpts {
+    &self.resolver_opts
   }
 }
 
-#[cfg(not(unix))]
 impl Default for DnsResolverOptions {
   fn default() -> Self {
-    Self {
-      dns_config_path: None,
-      record_ttl: default_record_ttl(),
-    }
+    Self::new()
   }
 }
 
@@ -159,33 +137,40 @@ pub struct DnsResolver<R: Runtime> {
 
 impl<R: Runtime> DnsResolver<R> {
   /// Create a new [`DnsResolver`] with the given options.
-  pub fn new(opts: DnsResolverOptions) -> Result<Self, Error> {
-    let dns = if let Some(ref path) = opts.dns_config_path {
-      let (config, options) = read_resolv_conf(path)?;
-      if config.name_servers().is_empty() {
-        #[cfg(feature = "tracing")]
-        tracing::warn!(
-          target = "nodecraft.resolver.dns",
-          "no DNS servers found in {}",
-          path.display()
-        );
-
-        None
-      } else {
-        Some(Dns::new(config, options, AsyncConnectionProvider::new()))
-      }
+  pub fn new(opts: Option<DnsResolverOptions>) -> Result<Self, Error> {
+    let dns = if let Some(opts) = opts {
+      Some(Dns::new(
+        opts.resolver_config,
+        opts.resolver_opts,
+        AsyncConnectionProvider::new(),
+      ))
     } else {
-      #[cfg(feature = "tracing")]
-      tracing::warn!(
-        target = "nodecraft.resolver.dns",
-        "no default DNS configuration file",
-      );
       None
     };
-
     Ok(Self {
       dns,
-      record_ttl: opts.record_ttl,
+      record_ttl: default_record_ttl(),
+      cache: Default::default(),
+    })
+  }
+
+  /// Create a new [`DnsResolver`] with the given options and the ttl for the record.
+  pub fn with_record_ttl(
+    opts: Option<DnsResolverOptions>,
+    record_ttl: Duration,
+  ) -> Result<Self, Error> {
+    let dns = if let Some(opts) = opts {
+      Some(Dns::new(
+        opts.resolver_config,
+        opts.resolver_opts,
+        AsyncConnectionProvider::new(),
+      ))
+    } else {
+      None
+    };
+    Ok(Self {
+      dns,
+      record_ttl,
       cache: Default::default(),
     })
   }

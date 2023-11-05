@@ -4,16 +4,10 @@ mod id;
 pub use id::*;
 
 #[cfg(feature = "std")]
-use std::{boxed::Box, string::String, sync::Arc};
+use std::sync::Arc;
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
-use ::alloc::{boxed::Box, string::String, sync::Arc};
-
-#[cfg(feature = "alloc")]
-impl super::Id for String {}
-
-#[cfg(feature = "alloc")]
-impl super::Id for Box<str> {}
+use ::alloc::sync::Arc;
 
 #[cfg(feature = "alloc")]
 impl super::Id for Arc<str> {}
