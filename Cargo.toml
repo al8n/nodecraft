@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.2.2"
+version = "0.2.1"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -27,11 +27,17 @@ async = ["dep:futures", "alloc"]
 
 # enable dns node address resolver
 dns = ["std", "resolver", "dep:hickory-resolver", "crossbeam-skiplist/default", "async", "agnostic/dns"]
-dns-over-quic = ["dns", "hickory-resolver/dns-over-quic", "agnostic/dns-over-quic"]
-dns-over-https-rustls = ["dns", "hickory-resolver/dns-over-https-rustls"]
-dns-over-rustls = ["dns", "hickory-resolver/dns-over-rustls"]
-dns-over-openssl = ["dns", "hickory-resolver/dns-over-openssl"]
-dns-over-native-tls = ["dns", "hickory-resolver/dns-over-native-tls"]
+dns-over-quic = ["dns", "agnostic/dns-over-quic"]
+dns-over-h3 = ["dns", "agnostic/dns-over-h3"]
+dns-over-https-rustls = ["dns", "agnostic/dns-over-https-rustls"]
+dns-over-rustls = ["dns", "agnostic/dns-over-rustls"]
+dns-over-openssl = ["dns", "agnostic/dns-over-openssl"]
+dns-over-native-tls = ["dns", "agnostic/dns-over-native-tls"]
+dns-webpki-roots = ["dns", "agnostic/dns-webpki-roots"]
+dns-native-certs = ["dns", "agnostic/dns-native-certs"]
+dnssec-openssl = ["dns", "agnostic/dnssec-openssl"]
+dnssec-ring = ["dnssec", "agnostic/dnssec-ring"]
+dnssec = ["dns", "agnostic/dnssec"]
 
 
 # enable node address resolver
@@ -45,7 +51,7 @@ tracing = ["dep:tracing"]
 [dependencies]
 cheap-clone = { version = "0.1", default-features = false, features = ["smol_str"] }
 
-agnostic = { version = "0.2.2", optional = true }
+agnostic = { version = "0.2", optional = true }
 bytes = { version = "1.5", default-features = false, optional = true }
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "1", optional = true }

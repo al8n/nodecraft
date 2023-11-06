@@ -4,14 +4,14 @@ use std::{
   net::{SocketAddr, ToSocketAddrs},
 };
 
-pub use agnostic::net::dns::read_resolv_conf;
+pub use agnostic::net::dns::*;
 use agnostic::{
   net::dns::{AsyncConnectionProvider, Dns},
   Runtime,
 };
 use crossbeam_skiplist::SkipMap;
-use smol_str::SmolStr;
 pub use hickory_resolver::config::{ResolverConfig, ResolverOpts};
+use smol_str::SmolStr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
 use crate::{Kind, NodeAddress};

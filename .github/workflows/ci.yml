@@ -82,8 +82,12 @@ jobs:
       with:
         path: ~/.cargo
         key: ${{ runner.os }}-coverage-dotcargo
-    - name: Run build
-      run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-openssl,dns-over-openssl,dns-over-native-tls --exclude-features tracing
+    - name: Run build (unix)
+      run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-openssl,dns-over-native-tls,dns-webpki-roots,dns-native-certs,dnssec-openssl,dnssec-ring,dnssec --exclude-features tracing
+      if: matrix.os != 'windows-latest'
+    - name: Run build (windows)
+      run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-native-tls,dns-webpki-roots,dns-native-certs,dnssec-ring,dnssec --exclude-features tracing,dnssec-openssl,dns-over-openssl
+      if: matrix.os == 'windows-latest'
   
   test:
     name: test
@@ -107,7 +111,11 @@ jobs:
         path: ~/.cargo
         key: ${{ runner.os }}-coverage-dotcargo
     - name: Run test
-      run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-openssl,dns-over-openssl,dns-over-native-tls --exclude-features tracing
+      run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-openssl,dns-over-native-tls,dns-webpki-roots,dns-native-certs,dnssec-openssl,dnssec-ring,dnssec --exclude-features tracing
+      if: matrix.os != 'windows-latest'
+    - name: Run test (windows)
+      run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-native-tls,dns-webpki-roots,dns-native-certs,dnssec-ring,dnssec --exclude-features tracing,dnssec-openssl,dns-over-openssl
+      if: matrix.os == 'windows-latest'
 
   coverage:
     name: coverage
