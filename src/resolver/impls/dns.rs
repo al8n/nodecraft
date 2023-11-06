@@ -5,12 +5,8 @@ use std::{
 };
 
 pub use agnostic::net::dns::*;
-use agnostic::{
-  net::dns::{AsyncConnectionProvider, Dns},
-  Runtime,
-};
+use agnostic::Runtime;
 use crossbeam_skiplist::SkipMap;
-pub use hickory_resolver::config::{ResolverConfig, ResolverOpts};
 use smol_str::SmolStr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
