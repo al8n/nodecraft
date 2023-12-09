@@ -62,7 +62,7 @@ humantime-serde = { version = "1", default-features = false, optional = true}
 smol_str = { version = "0.2", default-features = false, optional = true }
 smallvec = { version = "1", default-features = false, optional = true, features = ["const_generics", "const_new", "union"] }
 
-idna = { version = "0.4", default-features = false, optional = true }
+idna = { version = "0.5", default-features = false, optional = true }
 hickory-resolver = { version = "0.24", default-features = false, optional = true }
 crossbeam-skiplist = { version = "0.1", optional = true }
 

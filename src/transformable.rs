@@ -5,6 +5,8 @@ mod string;
 #[cfg(feature = "alloc")]
 mod vec;
 
+mod time;
+
 #[cfg(feature = "smallvec")]
 mod smallvec;
 
@@ -42,7 +44,9 @@ pub trait Transformable {
   fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
+  ) -> impl std::future::Future<Output = std::io::Result<()>> + Send
+  where
+    Self::Error: Send + Sync + 'static;
 
   /// Returns the encoded length of the value.
   /// This is used to pre-allocate a buffer for encoding.
@@ -73,7 +77,8 @@ pub trait Transformable {
     reader: &mut R,
   ) -> impl std::future::Future<Output = std::io::Result<(usize, Self)>> + Send
   where
-    Self: Sized;
+    Self: Sized,
+    Self::Error: Send + Sync + 'static;
 }
 
 /// The error type for errors that get returned when encoding or decoding fails.
