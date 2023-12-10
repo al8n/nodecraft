@@ -52,7 +52,7 @@ tracing = ["dep:tracing"]
 [dependencies]
 cheap-clone = { version = "0.1", default-features = false, features = ["smol_str"] }
 
-agnostic = { version = "0.2", path = "../agnostic/agnostic", optional = true }
+agnostic = { version = "0.2", optional = true }
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "1", optional = true }
 transformable = { version = "0.1", default-features = false }
