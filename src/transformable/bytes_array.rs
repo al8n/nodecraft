@@ -1,11 +1,11 @@
 use super::*;
 
 impl<const N: usize> Transformable for [u8; N] {
-  type Error = BytesTransformableError;
+  type Error = BytesTransformError;
 
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
     if dst.len() < N {
-      return Err(BytesTransformableError::EncodeBufferTooSmall);
+      return Err(BytesTransformError::EncodeBufferTooSmall);
     }
 
     dst[..N].copy_from_slice(self);
@@ -53,7 +53,7 @@ impl<const N: usize> Transformable for [u8; N] {
   {
     let len = src.len();
     if len < N {
-      return Err(BytesTransformableError::Corrupted);
+      return Err(BytesTransformError::Corrupted);
     }
 
     let mut buf = [0; N];

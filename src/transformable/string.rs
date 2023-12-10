@@ -2,13 +2,13 @@ use super::*;
 use core::borrow::Borrow;
 
 macro_rules! impl_string {
-  ($ty: ty) => {
+  ($ty: ty => $test_fn:ident($init: expr)) => {
     impl Transformable for $ty {
-      type Error = StringTransformableError;
+      type Error = StringTransformError;
 
       fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
         let src: &str = self.borrow();
-        encode_bytes(src.as_bytes(), dst).map_err(StringTransformableError::from_bytes_error)
+        encode_bytes(src.as_bytes(), dst).map_err(StringTransformError::from_bytes_error)
       }
 
       /// Encodes the value into the given writer.
@@ -52,7 +52,7 @@ macro_rules! impl_string {
         Self: Sized,
       {
         decode_bytes(src)
-          .map_err(StringTransformableError::from_bytes_error)
+          .map_err(StringTransformError::from_bytes_error)
           .and_then(|(readed, bytes)| {
             core::str::from_utf8(bytes.as_ref())
               .map(|s| (readed, Self::from(s)))
@@ -104,10 +104,12 @@ macro_rules! impl_string {
           })
       }
     }
+  
+    test_transformable!($ty => $test_fn($init));
   };
 }
 
-impl_string!(String);
-impl_string!(smol_str::SmolStr);
-impl_string!(Box<str>);
-impl_string!(Arc<str>);
+impl_string!(String => test_string_transformable("hello world".to_string()));
+impl_string!(smol_str::SmolStr => test_smol_str_transformable(smol_str::SmolStr::from("hello world")));
+impl_string!(Box<str> => test_box_str_transformable(Box::from("hello world")));
+impl_string!(Arc<str> => test_arc_str_transformable(Arc::from("hello world")));

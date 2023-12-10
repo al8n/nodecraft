@@ -8,7 +8,7 @@ use crate::utils::invalid_data;
 /// The wire error type for [`SocketAddr`].
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
-pub enum SocketAddrTransformableError {
+pub enum SocketAddrTransformError {
   /// Returned when the buffer is too small to encode the [`SocketAddr`].
   #[cfg_attr(feature = "std", error(
     "buffer is too small, use `SocketAddr::encoded_len` to pre-allocate a buffer with enough space"
@@ -35,7 +35,7 @@ const TAG_SIZE: usize = 1;
 const PORT_SIZE: usize = core::mem::size_of::<u16>();
 
 impl Transformable for SocketAddr {
-  type Error = SocketAddrTransformableError;
+  type Error = SocketAddrTransformError;
 
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
     let encoded_len = self.encoded_len();
@@ -121,7 +121,7 @@ impl Transformable for SocketAddr {
     match src[0] {
       4 => {
         if src.len() < 7 {
-          return Err(SocketAddrTransformableError::Corrupted(
+          return Err(SocketAddrTransformError::Corrupted(
             "corrupted socket v4 address",
           ));
         }
@@ -132,7 +132,7 @@ impl Transformable for SocketAddr {
       }
       6 => {
         if src.len() < 19 {
-          return Err(SocketAddrTransformableError::Corrupted(
+          return Err(SocketAddrTransformError::Corrupted(
             "corrupted socket v6 address",
           ));
         }
@@ -143,7 +143,7 @@ impl Transformable for SocketAddr {
         let port = u16::from_be_bytes([src[17], src[18]]);
         Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
-      val => Err(SocketAddrTransformableError::UnknownAddressFamily(val)),
+      val => Err(SocketAddrTransformError::UnknownAddressFamily(val)),
     }
   }
 
@@ -177,7 +177,7 @@ impl Transformable for SocketAddr {
         Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
       val => Err(invalid_data(
-        SocketAddrTransformableError::UnknownAddressFamily(val),
+        SocketAddrTransformError::UnknownAddressFamily(val),
       )),
     }
   }
@@ -215,7 +215,7 @@ impl Transformable for SocketAddr {
         Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port))))
       }
       val => Err(invalid_data(
-        SocketAddrTransformableError::UnknownAddressFamily(val),
+        SocketAddrTransformError::UnknownAddressFamily(val),
       )),
     }
   }

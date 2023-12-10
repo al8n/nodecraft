@@ -1,9 +1,9 @@
 use super::*;
 
 macro_rules! impl_bytes {
-  ($ty: ty) => {
+  ($ty: ty => $test_fn:ident($init: expr)) => {
     impl Transformable for $ty {
-      type Error = BytesTransformableError;
+      type Error = BytesTransformError;
 
       fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
         encode_bytes(self.as_ref(), dst)
@@ -85,11 +85,12 @@ macro_rules! impl_bytes {
           .map(|(readed, b)| (readed, b.into()))
       }
     }
+
+    test_transformable!($ty => $test_fn($init));
   };
 }
 
 #[cfg(feature = "bytes")]
-impl_bytes!(::bytes::Bytes);
-
-impl_bytes!(Box<[u8]>);
-impl_bytes!(Arc<[u8]>);
+impl_bytes!(::bytes::Bytes => test_bytes_transformable(::bytes::Bytes::from_static(b"hello world")));
+impl_bytes!(Box<[u8]> => test_box_u8_transformable(Box::from(b"hello world".to_vec())));
+impl_bytes!(Arc<[u8]> => test_arc_u8_transformable(Arc::from(b"hello world".to_vec())));

@@ -1,3 +1,28 @@
+macro_rules! test_transformable {
+  ($ty: ty => $test_fn:ident($init: expr)) => {
+    #[tokio::test]
+    async fn $test_fn() {
+      let val: $ty = $init;
+      let mut buf = std::vec![0; val.encoded_len()];
+      val.encode(&mut buf).unwrap();
+      let (_, decoded) = <$ty>::decode(&buf).unwrap();
+      assert_eq!(decoded, val);
+
+      let mut buf = std::vec::Vec::new();
+      val.encode_to_writer(&mut buf).unwrap();
+      let (_, decoded) = <$ty>::decode_from_reader(&mut buf.as_slice()).unwrap();
+      assert_eq!(decoded, val);
+
+      let mut buf = std::vec::Vec::new();
+      val.encode_to_async_writer(&mut buf).await.unwrap();
+      let (_, decoded) = <$ty>::decode_from_async_reader(&mut buf.as_slice())
+        .await
+        .unwrap();
+      assert_eq!(decoded, val);
+    }    
+  };
+}
+
 #[cfg(feature = "alloc")]
 mod bytes;
 #[cfg(feature = "alloc")]
@@ -6,6 +31,7 @@ mod string;
 mod vec;
 
 mod time;
+pub use time::*;
 
 #[cfg(feature = "smallvec")]
 mod smallvec;
@@ -32,6 +58,13 @@ pub trait Transformable {
 
   /// Encodes the value into the given buffer for transmission.
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error>;
+
+  /// Encodes the value into a vec for transmission.
+  fn encode_to_vec(&self) -> Result<Vec<u8>, Self::Error> {
+    let mut buf = vec![0u8; self.encoded_len()];
+    self.encode(&mut buf)?;
+    Ok(buf)
+  }
 
   /// Encodes the value into the given writer for transmission.
   #[cfg(feature = "std")]
@@ -84,7 +117,7 @@ pub trait Transformable {
 /// The error type for errors that get returned when encoding or decoding fails.
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
-pub enum BytesTransformableError {
+pub enum BytesTransformError {
   /// Returned when the buffer is too small to encode.
   #[cfg_attr(feature = "std", error(
     "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"
@@ -100,7 +133,7 @@ pub enum BytesTransformableError {
 }
 
 #[cfg(not(feature = "std"))]
-impl core::fmt::Display for BytesTransformableError {
+impl core::fmt::Display for BytesTransformError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::EncodeBufferTooSmall => write!(
@@ -112,14 +145,14 @@ impl core::fmt::Display for BytesTransformableError {
   }
 }
 
-impl BytesTransformableError {
-  /// Create a new `BytesTransformableError::Corrupted` error.
+impl BytesTransformError {
+  /// Create a new `BytesTransformError::Corrupted` error.
   #[inline]
   pub const fn corrupted() -> Self {
     Self::Corrupted
   }
 
-  /// Create a new `BytesTransformableError::Custom` error.
+  /// Create a new `BytesTransformError::Custom` error.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
   #[inline]
@@ -135,7 +168,7 @@ impl BytesTransformableError {
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
 #[cfg(feature = "alloc")]
-pub enum StringTransformableError {
+pub enum StringTransformError {
   /// Returned when the buffer is too small to encode.
   #[cfg_attr(feature = "std", error(
     "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"
@@ -154,14 +187,14 @@ pub enum StringTransformableError {
 }
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
-impl core::convert::From<core::str::Utf8Error> for StringTransformableError {
+impl core::convert::From<core::str::Utf8Error> for StringTransformError {
   fn from(err: core::str::Utf8Error) -> Self {
     Self::Utf8Error(err)
   }
 }
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
-impl core::fmt::Display for StringTransformableError {
+impl core::fmt::Display for StringTransformError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::EncodeBufferTooSmall => write!(
@@ -175,14 +208,14 @@ impl core::fmt::Display for StringTransformableError {
 }
 
 #[cfg(feature = "alloc")]
-impl StringTransformableError {
-  /// Create a new `BytesTransformableError::Corrupted` error.
+impl StringTransformError {
+  /// Create a new `BytesTransformError::Corrupted` error.
   #[inline]
   pub const fn corrupted() -> Self {
     Self::Corrupted
   }
 
-  /// Create a new `BytesTransformableError::Custom` error.
+  /// Create a new `BytesTransformError::Custom` error.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
   #[inline]
@@ -193,12 +226,12 @@ impl StringTransformableError {
     Self::Custom(err.into())
   }
 
-  fn from_bytes_error(err: BytesTransformableError) -> Self {
+  fn from_bytes_error(err: BytesTransformError) -> Self {
     match err {
-      BytesTransformableError::EncodeBufferTooSmall => Self::EncodeBufferTooSmall,
-      BytesTransformableError::Corrupted => Self::Corrupted,
+      BytesTransformError::EncodeBufferTooSmall => Self::EncodeBufferTooSmall,
+      BytesTransformError::Corrupted => Self::Corrupted,
       #[cfg(feature = "std")]
-      BytesTransformableError::Custom(err) => Self::Custom(err),
+      BytesTransformError::Custom(err) => Self::Custom(err),
     }
   }
 }
@@ -232,15 +265,15 @@ fn decode_bytes_from<R: std::io::Read>(src: &mut R) -> std::io::Result<(usize, V
 }
 
 #[cfg(feature = "alloc")]
-fn decode_bytes(src: &[u8]) -> Result<(usize, Vec<u8>), BytesTransformableError> {
+fn decode_bytes(src: &[u8]) -> Result<(usize, Vec<u8>), BytesTransformError> {
   let len = src.len();
   if len < LEGNTH_SIZE {
-    return Err(BytesTransformableError::Corrupted);
+    return Err(BytesTransformError::Corrupted);
   }
 
   let data_len = u32::from_be_bytes([src[0], src[1], src[2], src[3]]) as usize;
   if data_len > len - LEGNTH_SIZE {
-    return Err(BytesTransformableError::Corrupted);
+    return Err(BytesTransformError::Corrupted);
   }
 
   let total_len = LEGNTH_SIZE + data_len;
@@ -248,10 +281,10 @@ fn decode_bytes(src: &[u8]) -> Result<(usize, Vec<u8>), BytesTransformableError>
 }
 
 #[cfg(feature = "alloc")]
-fn encode_bytes(src: &[u8], dst: &mut [u8]) -> Result<(), BytesTransformableError> {
+fn encode_bytes(src: &[u8], dst: &mut [u8]) -> Result<(), BytesTransformError> {
   let encoded_len = encoded_bytes_len(src);
   if dst.len() < encoded_len {
-    return Err(BytesTransformableError::EncodeBufferTooSmall);
+    return Err(BytesTransformError::EncodeBufferTooSmall);
   }
   let src_len = src.len();
   dst[..LEGNTH_SIZE].copy_from_slice(&(src_len as u32).to_be_bytes());

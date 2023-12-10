@@ -1,7 +1,7 @@
 use super::*;
 
 impl Transformable for Vec<u8> {
-  type Error = BytesTransformableError;
+  type Error = BytesTransformError;
 
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
     encode_bytes(self.as_ref(), dst)
@@ -81,3 +81,6 @@ impl Transformable for Vec<u8> {
     decode_bytes_from_async(src).await
   }
 }
+
+
+test_transformable!(Vec<u8> => test_vec_transformable(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 0]));

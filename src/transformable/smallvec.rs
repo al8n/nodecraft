@@ -1,7 +1,7 @@
 use super::*;
 
 impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
-  type Error = BytesTransformableError;
+  type Error = BytesTransformError;
 
   fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
     encode_bytes(self.as_ref(), dst)
@@ -83,3 +83,6 @@ impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
       .map(|(readed, b)| (readed, b.into()))
   }
 }
+
+
+test_transformable!(::smallvec::SmallVec<[u8; 10]> => test_vec_transformable(::smallvec::SmallVec::from([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])));

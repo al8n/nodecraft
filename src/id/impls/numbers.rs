@@ -2,14 +2,14 @@ use super::super::{Id, Transformable};
 
 /// Error type for transformable numbers.
 #[derive(Debug)]
-pub enum NumberIdTransformableError {
+pub enum NumberIdTransformError {
   /// Returned when the buffer is too small to encode.
   EncodeBufferTooSmall,
   /// Returned when the id is corrupted.
   Corrupted,
 }
 
-impl core::fmt::Display for NumberIdTransformableError {
+impl core::fmt::Display for NumberIdTransformError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::EncodeBufferTooSmall => write!(f, "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"),
@@ -19,7 +19,7 @@ impl core::fmt::Display for NumberIdTransformableError {
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for NumberIdTransformableError {}
+impl std::error::Error for NumberIdTransformError {}
 
 macro_rules! impl_number_based_id {
   ($($ty: ty), + $(,)?) => {
@@ -27,7 +27,7 @@ macro_rules! impl_number_based_id {
       impl Id for $ty {}
 
       impl Transformable for $ty {
-        type Error = NumberIdTransformableError;
+        type Error = NumberIdTransformError;
 
         fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
           const SIZE: usize = core::mem::size_of::<$ty>();
