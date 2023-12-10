@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Display};
 
-use crate::Transformable;
+use transformable::Transformable;
 
 mod impls;
 use cheap_clone::CheapClone;

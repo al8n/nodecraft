@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.2.1"
+version = "0.2.2"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -16,14 +16,14 @@ rust-version = "1.75.0"
 [features]
 default = ["std"]
 full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
-alloc = ["smol_str", "cheap-clone/alloc"]
-std = ["alloc", "cheap-clone/std", "smol_str/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std", "bytes?/std"]
+alloc = ["smol_str", "cheap-clone/alloc", "transformable/alloc"]
+std = ["alloc", "transformable/std", "cheap-clone/std", "smol_str?/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std"]
 
 # enable runtime agnostic features
 agnostic = ["dep:agnostic", "async"]
 
 # enable async features
-async = ["dep:futures", "alloc"]
+async = ["dep:futures", "alloc", "transformable/async"]
 
 # enable dns node address resolver
 dns = ["std", "resolver", "dep:hickory-resolver", "crossbeam-skiplist/default", "async", "agnostic/dns"]
@@ -39,11 +39,12 @@ dnssec-openssl = ["dns", "agnostic/dnssec-openssl"]
 dnssec-ring = ["dnssec", "agnostic/dnssec-ring"]
 dnssec = ["dns", "agnostic/dnssec"]
 
+smol_str = ["dep:smol_str", "alloc", "transformable/smol_str"]
 
 # enable node address resolver
 resolver = ["async", "crossbeam-skiplist/default", "std"]
 
-serde = ["dep:serde", "smol_str?/serde", "bytes?/serde", "humantime-serde", "smallvec?/serde", "hickory-resolver?/serde-config"]
+serde = ["dep:serde", "smol_str?/serde", "humantime-serde", "hickory-resolver?/serde-config"]
 
 # enable tracing
 tracing = ["dep:tracing"]
@@ -52,15 +53,13 @@ tracing = ["dep:tracing"]
 cheap-clone = { version = "0.1", default-features = false, features = ["smol_str"] }
 
 agnostic = { version = "0.2", path = "../agnostic/agnostic", optional = true }
-bytes = { version = "1.5", default-features = false, optional = true }
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "1", optional = true }
-
+transformable = { version = "0.1", default-features = false }
 serde = { version = "1", default-features = false, optional = true, features = ["derive"] }
-humantime-serde = { version = "1", default-features = false, optional = true}
+humantime-serde = { version = "1", default-features = false, optional = true }
 
 smol_str = { version = "0.2", default-features = false, optional = true }
-smallvec = { version = "1", default-features = false, optional = true, features = ["const_generics", "const_new", "union"] }
 
 idna = { version = "0.5", default-features = false, optional = true }
 hickory-resolver = { version = "0.24", default-features = false, optional = true }

@@ -16,4 +16,6 @@ impl super::Id for Arc<str> {}
 impl super::Id for smol_str::SmolStr {}
 
 mod numbers;
-pub use numbers::NumberIdTransformError;
+
+#[cfg(feature = "std")]
+mod net;

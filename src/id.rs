@@ -3,11 +3,10 @@ use core::{
   hash::Hash,
 };
 
-use crate::Transformable;
+use transformable::Transformable;
 
 mod impls;
 use cheap_clone::CheapClone;
-pub use impls::NumberIdTransformError;
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub use impls::{NodeId, NodeIdTransformError};
 
