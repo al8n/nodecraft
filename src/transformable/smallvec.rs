@@ -84,5 +84,4 @@ impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
   }
 }
 
-
 test_transformable!(::smallvec::SmallVec<[u8; 10]> => test_vec_transformable(::smallvec::SmallVec::from([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])));

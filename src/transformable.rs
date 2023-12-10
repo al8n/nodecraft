@@ -19,7 +19,7 @@ macro_rules! test_transformable {
         .await
         .unwrap();
       assert_eq!(decoded, val);
-    }    
+    }
   };
 }
 

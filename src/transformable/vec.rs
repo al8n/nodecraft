@@ -82,5 +82,4 @@ impl Transformable for Vec<u8> {
   }
 }
 
-
 test_transformable!(Vec<u8> => test_vec_transformable(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 0]));

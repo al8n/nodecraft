@@ -104,7 +104,7 @@ macro_rules! impl_string {
           })
       }
     }
-  
+
     test_transformable!($ty => $test_fn($init));
   };
 }
