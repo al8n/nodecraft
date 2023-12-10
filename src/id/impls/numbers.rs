@@ -3,7 +3,7 @@ use super::super::Id;
 macro_rules! impl_number_based_id {
   ($($ty: ty), + $(,)?) => {
     $(
-      impl Id for $ty {} 
+      impl Id for $ty {}
     )+
   };
 }
