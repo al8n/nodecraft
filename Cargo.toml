@@ -20,7 +20,7 @@ alloc = ["smol_str", "cheap-clone/alloc", "transformable/alloc"]
 std = ["alloc", "transformable/std", "cheap-clone/std", "smol_str?/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std"]
 
 # enable runtime agnostic features
-agnostic = ["dep:agnostic", "async"]
+agnostic = ["dep:agnostic", "async", "std"]
 
 # enable async features
 async = ["dep:futures", "alloc", "transformable/async"]

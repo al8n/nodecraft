@@ -147,7 +147,10 @@ impl Transformable for NodeId {
   async fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> std::io::Result<()> {
+  ) -> std::io::Result<()>
+  where
+    Self::Error: Send + Sync + 'static,
+  {
     use futures::AsyncWriteExt;
 
     let len = self.0.len() as u16;
@@ -229,6 +232,7 @@ impl Transformable for NodeId {
   ) -> std::io::Result<(usize, Self)>
   where
     Self: Sized,
+    Self::Error: Send + Sync + 'static,
   {
     use futures::AsyncReadExt;
 
