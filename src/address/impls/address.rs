@@ -374,8 +374,8 @@ impl Transformable for NodeAddress {
     }
   }
 
-  #[cfg(all(feature = "async", feature = "std"))]
-  #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
+  #[cfg(feature = "async")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
   async fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
@@ -545,8 +545,8 @@ impl Transformable for NodeAddress {
     }
   }
 
-  #[cfg(all(feature = "async", feature = "std"))]
-  #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
+  #[cfg(feature = "async")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
   async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     reader: &mut R,
   ) -> std::io::Result<(usize, Self)>

@@ -23,7 +23,7 @@ std = ["alloc", "transformable/std", "cheap-clone/std", "smol_str?/std", "idna/s
 agnostic = ["dep:agnostic", "async", "std"]
 
 # enable async features
-async = ["dep:futures", "alloc", "transformable/async"]
+async = ["dep:futures", "std", "transformable/async"]
 
 # enable dns node address resolver
 dns = ["std", "resolver", "dep:hickory-resolver", "crossbeam-skiplist/default", "async", "agnostic/dns"]

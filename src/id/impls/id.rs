@@ -142,8 +142,8 @@ impl Transformable for NodeId {
   /// if your writer is expensive (e.g. `TcpStream`, `File`),
   /// it is better to use a [`BufWriter`](futures::io::BufWriter)
   /// to wrap your orginal writer to cut down the number of I/O times.
-  #[cfg(all(feature = "async", feature = "std"))]
-  #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
+  #[cfg(feature = "async")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
   async fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
@@ -225,8 +225,8 @@ impl Transformable for NodeId {
   /// if your reader is expensive (e.g. `TcpStream`, `File`),
   /// it is better to use a [`BufReader`](futures::io::BufReader)
   /// to wrap your orginal reader to cut down the number of I/O times.
-  #[cfg(all(feature = "async", feature = "std"))]
-  #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "std"))))]
+  #[cfg(feature = "async")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
   async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
     reader: &mut R,
   ) -> std::io::Result<(usize, Self)>
