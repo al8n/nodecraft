@@ -175,9 +175,10 @@ impl<R: Runtime> DnsResolver<R> {
 impl<R: Runtime> AddressResolver for DnsResolver<R> {
   type Address = NodeAddress;
   type Error = Error;
+  type ResolvedAddress = SocketAddr;
   type Runtime = R;
 
-  async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
+  async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
     match &address.kind {
       Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
       Kind::Domain { safe, original } => {

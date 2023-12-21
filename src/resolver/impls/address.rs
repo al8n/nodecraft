@@ -92,6 +92,7 @@ mod resolver {
 
   impl<R: Runtime> AddressResolver for NodeAddressResolver<R> {
     type Address = NodeAddress;
+    type ResolvedAddress = SocketAddr;
     type Error = std::io::Error;
     type Runtime = R;
 
@@ -187,6 +188,7 @@ mod resolver {
 
   impl AddressResolver for NodeAddressResolver {
     type Address = NodeAddress;
+    type ResolvedAddress = SocketAddr;
     type Error = std::io::Error;
 
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {

@@ -1,8 +1,9 @@
-use std::{future::Future, net::SocketAddr};
+use std::future::Future;
 
 use crate::Address;
 
 mod impls;
+use cheap_clone::CheapClone;
 pub use impls::*;
 
 #[cfg(not(feature = "agnostic"))]
@@ -10,6 +11,8 @@ pub use impls::*;
 pub trait AddressResolver: Send + Sync + 'static {
   /// The address type used to identify nodes.
   type Address: Address;
+  /// The address type returned by the resolver.
+  type ResolvedAddress: CheapClone + Send + Sync + 'static;
   /// The error type returned by the resolver.
   type Error: std::error::Error + Send + Sync + 'static;
 
@@ -17,7 +20,7 @@ pub trait AddressResolver: Send + Sync + 'static {
   fn resolve(
     &self,
     address: &Self::Address,
-  ) -> impl Future<Output = Result<SocketAddr, Self::Error>> + Send;
+  ) -> impl Future<Output = Result<Self::ResolvedAddress, Self::Error>> + Send;
 }
 
 #[cfg(feature = "agnostic")]
@@ -25,6 +28,10 @@ pub trait AddressResolver: Send + Sync + 'static {
 pub trait AddressResolver: Send + Sync + 'static {
   /// The address type used to identify nodes.
   type Address: Address;
+
+  /// The address type returned by the resolver.
+  type ResolvedAddress: CheapClone + Send + Sync + 'static;
+
   /// The error type returned by the resolver.
   type Error: std::error::Error + Send + Sync + 'static;
 
@@ -35,5 +42,5 @@ pub trait AddressResolver: Send + Sync + 'static {
   fn resolve(
     &self,
     address: &Self::Address,
-  ) -> impl Future<Output = Result<SocketAddr, Self::Error>> + Send;
+  ) -> impl Future<Output = Result<Self::ResolvedAddress, Self::Error>> + Send;
 }

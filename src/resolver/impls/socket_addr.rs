@@ -32,10 +32,11 @@ mod resolver {
 
   impl<R: Runtime> AddressResolver for SocketAddrResolver<R> {
     type Address = SocketAddr;
+    type ResolvedAddress = SocketAddr;
     type Error = Infallible;
     type Runtime = R;
 
-    async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
+    async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
       Ok(*address)
     }
   }
@@ -67,9 +68,10 @@ mod resolver {
 
   impl AddressResolver for SocketAddrResolver {
     type Address = SocketAddr;
+    type ResolvedAddress = SocketAddr;
     type Error = Infallible;
 
-    async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
+    async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
       Ok(*address)
     }
   }
