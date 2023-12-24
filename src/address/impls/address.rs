@@ -297,7 +297,8 @@ const INLINE: usize = 64;
 impl Transformable for NodeAddress {
   type Error = NodeAddressError;
 
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
+    let encoded_len = self.encoded_len();
     if dst.len() < self.encoded_len() {
       return Err(Self::Error::EncodeBufferTooSmall);
     }
@@ -326,12 +327,13 @@ impl Transformable for NodeAddress {
         dst[cur..cur + PORT_SIZE].copy_from_slice(&self.port.to_be_bytes());
       }
     }
-    Ok(())
+    Ok(encoded_len)
   }
 
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+    let encoded_len = self.encoded_len();
     match &self.kind {
       Kind::Ip(addr) => match addr {
         IpAddr::V4(addr) => {
@@ -350,7 +352,6 @@ impl Transformable for NodeAddress {
         }
       },
       Kind::Domain { safe, .. } => {
-        let encoded_len = self.encoded_len();
         let copy = |dst: &mut [u8]| {
           let mut cur = 0;
           dst[cur] = 0;
@@ -372,6 +373,7 @@ impl Transformable for NodeAddress {
         }
       }
     }
+    .map(|_| encoded_len)
   }
 
   #[cfg(feature = "async")]
@@ -379,9 +381,10 @@ impl Transformable for NodeAddress {
   async fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> std::io::Result<()> {
+  ) -> std::io::Result<usize> {
     use futures::AsyncWriteExt;
 
+    let len = self.encoded_len();
     match &self.kind {
       Kind::Ip(addr) => match addr {
         IpAddr::V4(addr) => {
@@ -416,12 +419,13 @@ impl Transformable for NodeAddress {
           copy(&mut dst[..encoded_len]);
           writer.write_all(&dst[..encoded_len]).await
         } else {
-          let mut dst = vec![0; self.encoded_len()];
+          let mut dst = vec![0; len];
           copy(&mut dst);
           writer.write_all(&dst).await
         }
       }
     }
+    .map(|_| len)
   }
 
   fn encoded_len(&self) -> usize {

@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.2.3"
+version = "0.2.4"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -53,6 +53,7 @@ tracing = ["dep:tracing"]
 cheap-clone = { version = "0.1", default-features = false, features = ["smol_str"] }
 
 agnostic = { version = "0.2", optional = true }
+byteorder = "1.5"
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "1", optional = true }
 transformable = { version = "0.1", default-features = false }

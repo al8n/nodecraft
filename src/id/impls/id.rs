@@ -1,5 +1,6 @@
 use core::{borrow::Borrow, mem};
 
+use byteorder::{ByteOrder, NetworkEndian};
 use smol_str::SmolStr;
 
 use crate::{Id, Transformable};
@@ -106,17 +107,17 @@ const LENGTH_SIZE: usize = mem::size_of::<u16>();
 impl Transformable for NodeId {
   type Error = NodeIdTransformError;
 
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
     let encoded_len = self.encoded_len();
     if dst.len() < encoded_len {
       return Err(NodeIdTransformError::EncodeBufferTooSmall);
     }
 
     let mut cur = 0;
-    dst[cur..cur + LENGTH_SIZE].copy_from_slice(&(self.0.len() as u16).to_be_bytes());
+    NetworkEndian::write_u16(&mut dst[..LENGTH_SIZE], self.0.len() as u16);
     cur += LENGTH_SIZE;
     dst[cur..cur + self.0.len()].copy_from_slice(self.0.as_bytes());
-    Ok(())
+    Ok(encoded_len)
   }
 
   /// Encodes the value into the given writer.
@@ -128,11 +129,16 @@ impl Transformable for NodeId {
   /// to wrap your orginal writer to cut down the number of I/O times.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+    let encoded_len = self.encoded_len();
     let len = self.0.len() as u16;
-    writer
-      .write_all(&len.to_be_bytes())
-      .and_then(|_| writer.write_all(self.0.as_str().as_bytes()))
+    let mut len_buf = [0; core::mem::size_of::<u16>()];
+    NetworkEndian::write_u16(&mut len_buf, len);
+    writer.write_all(&len_buf).and_then(|_| {
+      writer
+        .write_all(self.0.as_str().as_bytes())
+        .map(|_| encoded_len)
+    })
   }
 
   /// Encodes the value into the given async writer.
@@ -147,15 +153,21 @@ impl Transformable for NodeId {
   async fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> std::io::Result<()>
+  ) -> std::io::Result<usize>
   where
     Self::Error: Send + Sync + 'static,
   {
     use futures::AsyncWriteExt;
 
+    let encoded_len = self.encoded_len();
     let len = self.0.len() as u16;
-    writer.write_all(&len.to_be_bytes()).await?;
-    writer.write_all(self.0.as_str().as_bytes()).await
+    let mut len_buf = [0; core::mem::size_of::<u16>()];
+    NetworkEndian::write_u16(&mut len_buf, len);
+    writer.write_all(&len_buf).await?;
+    writer
+      .write_all(self.0.as_str().as_bytes())
+      .await
+      .map(|_| encoded_len)
   }
 
   fn encoded_len(&self) -> usize {
@@ -170,7 +182,7 @@ impl Transformable for NodeId {
       return Err(NodeIdTransformError::Corrupted);
     }
 
-    let len = u16::from_be_bytes([src[0], src[1]]) as usize;
+    let len = NetworkEndian::read_u16(&src[..core::mem::size_of::<u16>()]) as usize;
     if src.len() < LENGTH_SIZE + len {
       return Err(NodeIdTransformError::Corrupted);
     }
@@ -194,7 +206,7 @@ impl Transformable for NodeId {
   {
     let mut len_buf = [0; core::mem::size_of::<u16>()];
     reader.read_exact(&mut len_buf)?;
-    let len = u16::from_be_bytes(len_buf) as usize;
+    let len = NetworkEndian::read_u16(&len_buf) as usize;
     if len == 0 {
       return Err(invalid_data(NodeIdTransformError::Empty));
     }
@@ -238,7 +250,7 @@ impl Transformable for NodeId {
 
     let mut len_buf = [0; core::mem::size_of::<u16>()];
     reader.read_exact(&mut len_buf).await?;
-    let len = u16::from_be_bytes(len_buf) as usize;
+    let len = NetworkEndian::read_u16(&len_buf) as usize;
     if len == 0 {
       return Err(invalid_data(NodeIdTransformError::Empty));
     }
