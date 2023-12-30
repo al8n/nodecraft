@@ -11,4 +11,7 @@ use cheap_clone::CheapClone;
 pub use impls::{NodeId, NodeIdTransformError};
 
 /// Id abstraction for distributed systems
-pub trait Id: CheapClone + Eq + Hash + Debug + Display + Transformable + Sized + 'static {}
+pub trait Id:
+  CheapClone + Eq + Hash + Debug + Display + Transformable + Sized + Unpin + 'static
+{
+}

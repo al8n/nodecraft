@@ -11,6 +11,6 @@ pub use impls::{NodeAddress, NodeAddressError, ParseNodeAddressError};
 
 /// Address abstraction for distributed systems
 pub trait Address:
-  CheapClone + Eq + core::hash::Hash + Debug + Display + Transformable + Sized + 'static
+  CheapClone + Eq + core::hash::Hash + Debug + Display + Transformable + Sized + Unpin + 'static
 {
 }
