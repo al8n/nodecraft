@@ -104,6 +104,7 @@ impl NodeId {
 const INLINE: usize = 64;
 const LENGTH_SIZE: usize = mem::size_of::<u16>();
 
+#[cfg(feature = "transformable")]
 impl Transformable for NodeId {
   type Error = NodeIdTransformError;
 

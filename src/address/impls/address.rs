@@ -294,6 +294,7 @@ const V6_ENCODED_LEN: usize = TAG_SIZE + V6_SIZE + PORT_SIZE;
 /// If encoded size less than this value, we can use inline buffer to avoid heap allocation.
 const INLINE: usize = 64;
 
+#[cfg(feature = "transformable")]
 impl Transformable for NodeAddress {
   type Error = NodeAddressError;
 

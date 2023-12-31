@@ -25,6 +25,7 @@ pub mod resolver;
 #[cfg(feature = "async")]
 pub use futures;
 
+#[cfg(feature = "transformable")]
 pub use transformable::{self, Transformable};
 
 pub use cheap_clone::CheapClone;

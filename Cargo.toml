@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.2.6"
+version = "0.2.7"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -16,14 +16,14 @@ rust-version = "1.75.0"
 [features]
 default = ["std"]
 full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
-alloc = ["smol_str", "cheap-clone/alloc", "transformable/alloc"]
-std = ["alloc", "transformable/std", "cheap-clone/std", "smol_str?/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std"]
+alloc = ["smol_str", "cheap-clone/alloc", "transformable?/alloc"]
+std = ["alloc", "transformable?/std", "cheap-clone/std", "smol_str?/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std"]
 
 # enable runtime agnostic features
 agnostic = ["dep:agnostic", "async", "std"]
 
 # enable async features
-async = ["dep:futures", "std", "transformable/async"]
+async = ["dep:futures", "std", "transformable?/async"]
 
 # enable dns node address resolver
 dns = ["std", "resolver", "dep:hickory-resolver", "crossbeam-skiplist/default", "async", "agnostic/dns"]
@@ -46,6 +46,8 @@ resolver = ["async", "crossbeam-skiplist/default", "std"]
 
 serde = ["dep:serde", "smol_str?/serde", "humantime-serde", "hickory-resolver?/serde-config"]
 
+transformable = ["dep:transformable"]
+
 # enable tracing
 tracing = ["dep:tracing"]
 
@@ -56,7 +58,7 @@ agnostic = { version = "0.2", optional = true }
 byteorder = "1.5"
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "1", optional = true }
-transformable = { version = "0.1", default-features = false }
+transformable = { version = "0.1", default-features = false, optional = true }
 serde = { version = "1", default-features = false, optional = true, features = ["derive"] }
 humantime-serde = { version = "1", default-features = false, optional = true }
 
