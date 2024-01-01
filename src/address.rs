@@ -3,6 +3,8 @@ use core::fmt::{Debug, Display};
 mod impls;
 use cheap_clone::CheapClone;
 #[cfg(feature = "resolver")]
+pub(crate) use impls::DnsName;
+#[cfg(feature = "resolver")]
 pub(crate) use impls::Kind;
 #[cfg(feature = "std")]
 pub use impls::{NodeAddress, NodeAddressError, ParseNodeAddressError};

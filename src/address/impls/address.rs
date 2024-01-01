@@ -9,12 +9,52 @@ use std::{
   str::FromStr,
 };
 
-use smol_str::SmolStr;
+mod dns_name;
+pub(crate) use dns_name::{DnsName, InvalidDnsNameError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Kind {
   Ip(IpAddr),
-  Domain { safe: SmolStr, original: SmolStr },
+  Dns(DnsName),
+}
+
+impl PartialOrd for Kind {
+  fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl Ord for Kind {
+  fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+    match (self, other) {
+      (Self::Ip(a), Self::Ip(b)) => a.cmp(b),
+      (Self::Dns(a), Self::Dns(b)) => a.cmp(b),
+      (Self::Ip(ip), Self::Dns(dns)) => match ip {
+        IpAddr::V4(ip) => {
+          let ip = ip.octets();
+          let dns = dns.as_str();
+          ip.as_slice().cmp(dns.as_bytes())
+        }
+        IpAddr::V6(ip) => {
+          let ip = ip.octets();
+          let dns = dns.as_str();
+          ip.as_slice().cmp(dns.as_bytes())
+        }
+      },
+      (Self::Dns(dns), Self::Ip(ip)) => match ip {
+        IpAddr::V4(ip) => {
+          let ip = ip.octets();
+          let dns = dns.as_str();
+          dns.as_bytes().cmp(ip.as_slice())
+        }
+        IpAddr::V6(ip) => {
+          let ip = ip.octets();
+          let dns = dns.as_str();
+          dns.as_bytes().cmp(ip.as_slice())
+        }
+      },
+    }
+  }
 }
 
 /// An error which can be returned when parsing a [`NodeAddress`].
@@ -25,8 +65,8 @@ pub enum ParseNodeAddressError {
   #[cfg_attr(feature = "std", error("address is missing port"))]
   MissingPort,
   /// Returned if the provided str is not a valid address.
-  #[cfg_attr(feature = "std", error("invalid domain"))]
-  InvalidDomain,
+  #[cfg_attr(feature = "std", error("invalid DNS name {0}"))]
+  InvalidDnsName(InvalidDnsNameError),
   /// Returned if the provided str is not a valid port.
   #[cfg_attr(feature = "std", error("invalid port: {0}"))]
   InvalidPort(#[cfg_attr(feature = "std", from)] std::num::ParseIntError),
@@ -37,7 +77,7 @@ impl core::fmt::Display for ParseNodeAddressError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::MissingPort => write!(f, "address is missing port"),
-      Self::InvalidDomain => write!(f, "invalid domain"),
+      Self::InvalidDnsName => write!(f, "invalid domain"),
       Self::InvalidPort(port) => write!(f, "invalid port: {port}"),
     }
   }
@@ -77,7 +117,6 @@ impl core::fmt::Display for NodeAddressError {
       Self::ParseNodeAddressError(err) => write!(f, "{err}"),
       Self::Corrupted(msg) => write!(f, "{msg}"),
       Self::UnknownAddressTag(t) => write!(f, "unknown address tag: {t}"),
-      Self::Utf8Error(err) => write!(f, "{err}"),
     }
   }
 }
@@ -88,13 +127,46 @@ impl core::fmt::Display for NodeAddressError {
 /// 1. `www.example.com:8080`
 /// 2. `[::1]:8080`
 /// 3. `127.0.0.1:8080`
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub struct NodeAddress {
   pub(crate) kind: Kind,
   pub(crate) port: u16,
 }
 
 impl Address for NodeAddress {}
+
+impl PartialOrd for NodeAddress {
+  fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl Ord for NodeAddress {
+  fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+    match self.kind.cmp(&other.kind) {
+      core::cmp::Ordering::Equal => self.port.cmp(&other.port),
+      ord => ord,
+    }
+  }
+}
+
+impl core::fmt::Display for NodeAddress {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    match &self.kind {
+      Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
+      Kind::Dns(name) => write!(f, "{}:{}", name.as_str(), self.port),
+    }
+  }
+}
+
+impl core::fmt::Debug for NodeAddress {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    match &self.kind {
+      Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
+      Kind::Dns(name) => write!(f, "{}:{}", name.as_str(), self.port),
+    }
+  }
+}
 
 #[cfg(feature = "serde")]
 impl serde::Serialize for NodeAddress {
@@ -107,7 +179,7 @@ impl serde::Serialize for NodeAddress {
         Kind::Ip(ip) => SocketAddr::new(*ip, self.port)
           .to_string()
           .serialize(serializer),
-        Kind::Domain { original, .. } => serializer.serialize_str(original.as_str()),
+        Kind::Dns(name) => serializer.serialize_str(name.terminate_str()),
       }
     } else {
       let encoded_len = self.encoded_len();
@@ -188,22 +260,13 @@ impl FromStr for NodeAddress {
             };
 
             let port = port.parse().map_err(ParseNodeAddressError::InvalidPort)?;
-            idna::domain_to_ascii_strict(domain)
-              .map(|mut domain| {
-                // make sure we will only issue one query
-                if !domain.ends_with('.') {
-                  domain.push('.');
-                }
+            let dns = DnsName::try_from(domain).map_err(ParseNodeAddressError::InvalidDnsName)?;
 
-                Self {
-                  kind: Kind::Domain {
-                    safe: SmolStr::from(domain),
-                    original: SmolStr::from(s),
-                  },
-                  port,
-                }
-              })
-              .map_err(|_| ParseNodeAddressError::InvalidDomain)
+            Ok(Self {
+              kind: Kind::Dns(dns),
+              port,
+            })
+            .map_err(ParseNodeAddressError::InvalidDnsName)
           }
         }
       }
@@ -215,31 +278,18 @@ impl TryFrom<(&str, u16)> for NodeAddress {
   type Error = ParseNodeAddressError;
 
   fn try_from((domain, port): (&str, u16)) -> Result<Self, Self::Error> {
-    idna::domain_to_ascii_strict(domain)
-      .map(|mut domain| {
-        // make sure we will only issue one query
-        if !domain.ends_with('.') {
-          domain.push('.');
-        }
-
-        let orig = format!("{domain}:{port}");
-        Self {
-          kind: Kind::Domain {
-            safe: SmolStr::from(domain),
-            original: SmolStr::from(orig),
-          },
+    let res: Result<IpAddr, _> = domain.parse();
+    match res {
+      Ok(addr) => Ok(Self {
+        kind: Kind::Ip(addr),
+        port,
+      }),
+      Err(_) => DnsName::try_from(domain)
+        .map(|dns| Self {
+          kind: Kind::Dns(dns),
           port,
-        }
-      })
-      .map_err(|_| ParseNodeAddressError::InvalidDomain)
-  }
-}
-
-impl core::fmt::Display for NodeAddress {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match &self.kind {
-      Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
-      Kind::Domain { original, .. } => write!(f, "{original}:{}", self.port),
+        })
+        .map_err(ParseNodeAddressError::InvalidDnsName),
     }
   }
 }
@@ -249,7 +299,7 @@ impl NodeAddress {
   pub fn domain(&self) -> Option<&str> {
     match &self.kind {
       Kind::Ip(_) => None,
-      Kind::Domain { original, .. } => Some(original.rsplit_once(':').unwrap().1),
+      Kind::Dns(name) => Some(name.as_str()),
     }
   }
 
@@ -257,7 +307,7 @@ impl NodeAddress {
   pub const fn ip(&self) -> Option<IpAddr> {
     match &self.kind {
       Kind::Ip(addr) => Some(*addr),
-      Kind::Domain { .. } => None,
+      Kind::Dns(_) => None,
     }
   }
 
@@ -317,10 +367,11 @@ impl Transformable for NodeAddress {
           dst[17..19].copy_from_slice(&self.port.to_be_bytes());
         }
       },
-      Kind::Domain { safe, .. } => {
+      Kind::Dns(name) => {
         let mut cur = 0;
         dst[cur] = 0;
         cur += TAG_SIZE;
+        let safe = name.terminate_str();
         dst[cur] = safe.len() as u8;
         cur += DOMAIN_LEN_SIZE;
         dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
@@ -352,7 +403,8 @@ impl Transformable for NodeAddress {
           writer.write_all(&dst)
         }
       },
-      Kind::Domain { safe, .. } => {
+      Kind::Dns(name) => {
+        let safe = name.terminate_str();
         let copy = |dst: &mut [u8]| {
           let mut cur = 0;
           dst[cur] = 0;
@@ -403,12 +455,13 @@ impl Transformable for NodeAddress {
           writer.write_all(&dst).await
         }
       },
-      Kind::Domain { safe, .. } => {
+      Kind::Dns(name) => {
         let encoded_len = self.encoded_len();
         let copy = |dst: &mut [u8]| {
           let mut cur = 0;
           dst[cur] = 0;
           cur += TAG_SIZE;
+          let safe = name.terminate_str();
           dst[cur] = safe.len() as u8;
           cur += DOMAIN_LEN_SIZE;
           dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
@@ -435,7 +488,7 @@ impl Transformable for NodeAddress {
         IpAddr::V4(_) => TAG_SIZE + V4_SIZE + PORT_SIZE,
         IpAddr::V6(_) => TAG_SIZE + V6_SIZE + PORT_SIZE,
       },
-      Kind::Domain { safe, .. } => TAG_SIZE + DOMAIN_LEN_SIZE + safe.len() + PORT_SIZE,
+      Kind::Dns(name) => TAG_SIZE + DOMAIN_LEN_SIZE + name.terminate_str().len() + PORT_SIZE,
     }
   }
 

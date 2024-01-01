@@ -7,15 +7,14 @@ use std::{
 pub use agnostic::net::dns::*;
 use agnostic::Runtime;
 use crossbeam_skiplist::SkipMap;
-use smol_str::SmolStr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{Kind, NodeAddress};
+use crate::{DnsName, Kind, NodeAddress};
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
   #[error("cannot resolve an ip address for {0}")]
-  NotFound(SmolStr),
+  NotFound(DnsName),
   #[error("{0}")]
   Resolve(#[from] hickory_resolver::error::ResolveError),
 }
@@ -128,7 +127,7 @@ impl Default for DnsResolverOptions {
 pub struct DnsResolver<R: Runtime> {
   dns: Option<Dns<R>>,
   record_ttl: Duration,
-  cache: SkipMap<SmolStr, CachedSocketAddr>,
+  cache: SkipMap<DnsName, CachedSocketAddr>,
 }
 
 impl<R: Runtime> DnsResolver<R> {
@@ -181,9 +180,9 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
   async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
     match &address.kind {
       Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
-      Kind::Domain { safe, original } => {
+      Kind::Dns(name) => {
         // First, check cache
-        if let Some(ent) = self.cache.get(safe) {
+        if let Some(ent) = self.cache.get(name) {
           let val = ent.value();
           if !val.is_expired() {
             return Ok(val.val);
@@ -195,7 +194,7 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         // Second, TCP lookup ip address
         if let Some(ref dns) = self.dns {
           if let Some(ip) = dns
-            .lookup_ip(safe.as_str())
+            .lookup_ip(name.terminate_str())
             .await
             .map_err(|e| ResolveError::from(ResolveErrorKind::from(e)))?
             .into_iter()
@@ -204,7 +203,7 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
             let addr = SocketAddr::new(ip, address.port);
             self
               .cache
-              .insert(safe.clone(), CachedSocketAddr::new(addr, self.record_ttl));
+              .insert(name.clone(), CachedSocketAddr::new(addr, self.record_ttl));
             return Ok(addr);
           }
         }
@@ -212,7 +211,7 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         // Finally, try to find the socket addr locally
         let (tx, rx) = futures::channel::oneshot::channel();
         let port = address.port;
-        let tsafe = safe.clone();
+        let tsafe = name.clone();
 
         R::spawn_blocking_detach(move || {
           if tx
@@ -234,12 +233,12 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         if let Some(addr) = res.into_iter().next() {
           self
             .cache
-            .insert(safe.clone(), CachedSocketAddr::new(addr, self.record_ttl));
+            .insert(name.clone(), CachedSocketAddr::new(addr, self.record_ttl));
           return Ok(addr);
         }
 
         Err(Error::Resolve(ResolveError(ResolveErrorKind::NotFound(
-          original.clone(),
+          name.clone(),
         ))))
       }
     }

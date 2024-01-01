@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.2.7"
+version = "0.2.8"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -17,7 +17,7 @@ rust-version = "1.75.0"
 default = ["std"]
 full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
 alloc = ["smol_str", "cheap-clone/alloc", "transformable?/alloc"]
-std = ["alloc", "transformable?/std", "cheap-clone/std", "smol_str?/std", "idna/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std"]
+std = ["alloc", "transformable?/std", "cheap-clone/std", "smol_str?/std", "thiserror", "serde?/std", "humantime-serde", "futures?/std"]
 
 # enable runtime agnostic features
 agnostic = ["dep:agnostic", "async", "std"]
@@ -64,7 +64,6 @@ humantime-serde = { version = "1", default-features = false, optional = true }
 
 smol_str = { version = "0.2", default-features = false, optional = true }
 
-idna = { version = "0.5", default-features = false, optional = true }
 hickory-resolver = { version = "0.24", default-features = false, optional = true }
 crossbeam-skiplist = { version = "0.1", optional = true }
 

@@ -2,10 +2,9 @@ use core::time::Duration;
 use std::net::{SocketAddr, ToSocketAddrs};
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{Kind, NodeAddress};
+use crate::{address::DnsName, Kind, NodeAddress};
 
 use crossbeam_skiplist::SkipMap;
-use smol_str::SmolStr;
 
 /// The options used to construct a [`AddressResolver`].
 #[derive(Debug, Clone)]
@@ -79,7 +78,7 @@ mod resolver {
   /// 3. `127.0.0.1:8080` // ipv4
   ///
   pub struct NodeAddressResolver<R: Runtime> {
-    cache: SkipMap<SmolStr, CachedSocketAddr>,
+    cache: SkipMap<DnsName, CachedSocketAddr>,
     record_ttl: Duration,
     _marker: std::marker::PhantomData<R>,
   }
@@ -99,9 +98,9 @@ mod resolver {
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       match &address.kind {
         Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
-        Kind::Domain { safe, original } => {
+        Kind::Dns(name) => {
           // First, check cache
-          if let Some(ent) = self.cache.get(safe) {
+          if let Some(ent) = self.cache.get(name) {
             let val = ent.value();
             if !val.is_expired() {
               return Ok(val.val);
@@ -113,7 +112,7 @@ mod resolver {
           // Finally, try to find the socket addr locally
           let (tx, rx) = futures::channel::oneshot::channel();
           let port = address.port;
-          let tsafe = safe.clone();
+          let tsafe = name.clone();
 
           R::spawn_blocking_detach(move || {
             if tx
@@ -135,13 +134,13 @@ mod resolver {
           if let Some(addr) = res.into_iter().next() {
             self
               .cache
-              .insert(safe.clone(), CachedSocketAddr::new(addr, self.record_ttl));
+              .insert(name.clone(), CachedSocketAddr::new(addr, self.record_ttl));
             return Ok(addr);
           }
 
           Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!("failed to resolve {}", original),
+            format!("failed to resolve {}", name.as_str()),
           ))
         }
       }
@@ -182,7 +181,7 @@ mod resolver {
   /// 3. `127.0.0.1:8080` // ipv4
   ///
   pub struct NodeAddressResolver {
-    cache: SkipMap<SmolStr, CachedSocketAddr>,
+    cache: SkipMap<DnsName, CachedSocketAddr>,
     record_ttl: Duration,
   }
 
@@ -194,9 +193,9 @@ mod resolver {
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       match &address.kind {
         Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
-        Kind::Domain { safe, original } => {
+        Kind::Dns(name) => {
           // First, check cache
-          if let Some(ent) = self.cache.get(safe) {
+          if let Some(ent) = self.cache.get(name) {
             let val = ent.value();
             if !val.is_expired() {
               return Ok(val.val);
@@ -206,17 +205,17 @@ mod resolver {
           }
 
           // Finally, try to find the socket addr locally
-          let res = ToSocketAddrs::to_socket_addrs(&(safe.as_str(), address.port))?;
+          let res = ToSocketAddrs::to_socket_addrs(&(name.as_str(), address.port))?;
           if let Some(addr) = res.into_iter().next() {
             self
               .cache
-              .insert(safe.clone(), CachedSocketAddr::new(addr, self.record_ttl));
+              .insert(name.clone(), CachedSocketAddr::new(addr, self.record_ttl));
             return Ok(addr);
           }
 
           Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!("failed to resolve {}", original),
+            format!("failed to resolve {}", name),
           ))
         }
       }
