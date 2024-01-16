@@ -66,6 +66,15 @@ impl core::fmt::Display for NodeIdTransformError {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
+#[cfg_attr(
+  feature = "rkyv",
+  derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
+#[cfg_attr(
+  feature = "rkyv",
+  archive_attr(derive(PartialEq, Eq, PartialOrd, Ord, Hash), repr(transparent))
+)]
 pub struct NodeId(SmolStr);
 
 impl Id for NodeId {}

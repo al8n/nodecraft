@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.2.8"
+version = "0.2.9"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -45,6 +45,7 @@ smol_str = ["dep:smol_str", "alloc", "transformable/smol_str"]
 resolver = ["async", "crossbeam-skiplist/default", "std"]
 
 serde = ["dep:serde", "smol_str?/serde", "humantime-serde", "hickory-resolver?/serde-config"]
+rkyv = ["dep:rkyv"]
 
 transformable = ["dep:transformable"]
 
@@ -68,6 +69,8 @@ hickory-resolver = { version = "0.24", default-features = false, optional = true
 crossbeam-skiplist = { version = "0.1", optional = true }
 
 tracing = { version = "0.1", optional = true }
+
+rkyv = { version = "0.7", optional = true, features = ["smol_str", "validation"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

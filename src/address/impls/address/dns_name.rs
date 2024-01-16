@@ -4,6 +4,17 @@ use smol_str::SmolStr;
 
 /// A type which encapsulates a string (borrowed or owned) that is a syntactically valid DNS name.
 #[derive(Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+#[cfg_attr(
+  feature = "rkyv",
+  derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
+#[cfg_attr(
+  feature = "rkyv",
+  archive_attr(derive(PartialEq, Eq, PartialOrd, Ord, Hash), repr(transparent))
+)]
 pub(crate) struct DnsName(SmolStr);
 
 impl core::fmt::Display for DnsName {

@@ -13,6 +13,16 @@ mod dns_name;
 pub(crate) use dns_name::{DnsName, InvalidDnsNameError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "rkyv",
+  derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
+#[cfg_attr(
+  feature = "rkyv",
+  archive_attr(derive(PartialEq, Eq, PartialOrd, Ord, Hash))
+)]
 pub(crate) enum Kind {
   Ip(IpAddr),
   Dns(DnsName),
@@ -128,6 +138,15 @@ impl core::fmt::Display for NodeAddressError {
 /// 2. `[::1]:8080`
 /// 3. `127.0.0.1:8080`
 #[derive(PartialEq, Eq, Hash, Clone)]
+#[cfg_attr(
+  feature = "rkyv",
+  derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
+#[cfg_attr(
+  feature = "rkyv",
+  archive_attr(derive(PartialEq, Eq, PartialOrd, Ord, Hash))
+)]
 pub struct NodeAddress {
   pub(crate) kind: Kind,
   pub(crate) port: u16,
@@ -483,13 +502,7 @@ impl Transformable for NodeAddress {
   }
 
   fn encoded_len(&self) -> usize {
-    match &self.kind {
-      Kind::Ip(addr) => match addr {
-        IpAddr::V4(_) => TAG_SIZE + V4_SIZE + PORT_SIZE,
-        IpAddr::V6(_) => TAG_SIZE + V6_SIZE + PORT_SIZE,
-      },
-      Kind::Dns(name) => TAG_SIZE + DOMAIN_LEN_SIZE + name.terminate_str().len() + PORT_SIZE,
-    }
+    encoded_len(self)
   }
 
   fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
@@ -668,3 +681,14 @@ impl Transformable for NodeAddress {
 }
 
 impl cheap_clone::CheapClone for NodeAddress {}
+
+#[cfg(any(feature = "rkyv", feature = "transformable"))]
+fn encoded_len(this: &NodeAddress) -> usize {
+  match &this.kind {
+    Kind::Ip(addr) => match addr {
+      IpAddr::V4(_) => TAG_SIZE + V4_SIZE + PORT_SIZE,
+      IpAddr::V6(_) => TAG_SIZE + V6_SIZE + PORT_SIZE,
+    },
+    Kind::Dns(name) => TAG_SIZE + DOMAIN_LEN_SIZE + name.terminate_str().len() + PORT_SIZE,
+  }
+}

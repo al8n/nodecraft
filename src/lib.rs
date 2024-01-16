@@ -12,10 +12,12 @@ extern crate std;
 
 mod address;
 mod id;
+mod node;
 pub(crate) mod utils;
 
 pub use address::*;
 pub use id::*;
+pub use node::*;
 
 /// `AddressResolver` trait for async.
 #[cfg(feature = "resolver")]
