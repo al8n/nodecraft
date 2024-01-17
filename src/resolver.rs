@@ -12,7 +12,7 @@ pub trait AddressResolver: Send + Sync + 'static {
   /// The address type used to identify nodes.
   type Address: Address;
   /// The address type returned by the resolver.
-  type ResolvedAddress: CheapClone + Send + Sync + 'static;
+  type ResolvedAddress: CheapClone + core::fmt::Debug + core::fmt::Display + Send + Sync + 'static;
   /// The error type returned by the resolver.
   type Error: std::error::Error + Send + Sync + 'static;
 
@@ -30,7 +30,7 @@ pub trait AddressResolver: Send + Sync + 'static {
   type Address: Address;
 
   /// The address type returned by the resolver.
-  type ResolvedAddress: CheapClone + Send + Sync + 'static;
+  type ResolvedAddress: CheapClone + core::fmt::Debug + core::fmt::Display + Send + Sync + 'static;
 
   /// The error type returned by the resolver.
   type Error: std::error::Error + Send + Sync + 'static;
