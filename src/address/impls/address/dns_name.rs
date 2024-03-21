@@ -19,7 +19,7 @@ pub(crate) struct DnsName(SmolStr);
 
 impl core::fmt::Display for DnsName {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    self.0.fmt(f)
+    self.as_str().fmt(f)
   }
 }
 
@@ -54,7 +54,7 @@ impl TryFrom<String> for DnsName {
       } else {
         Ok(Self(value.into()))
       }
-    } else if value.ends_with('.') {
+    } else if !value.ends_with('.') {
       Ok(Self(format!("{}.", value).into()))
     } else {
       Ok(Self(value.into()))
@@ -89,7 +89,7 @@ impl<'a> TryFrom<&'a str> for DnsName {
       } else {
         Ok(Self(value.into()))
       }
-    } else if value.ends_with('.') {
+    } else if !value.ends_with('.') {
       Ok(Self(format!("{}.", value).into()))
     } else {
       Ok(Self(value.into()))
@@ -115,7 +115,7 @@ impl<'a> TryFrom<&'a [u8]> for DnsName {
       } else {
         Ok(Self(core::str::from_utf8(value).unwrap().into()))
       }
-    } else if value.ends_with(&[b'.']) {
+    } else if !value.ends_with(&[b'.']) {
       Ok(Self(
         format!("{}.", core::str::from_utf8(value).unwrap()).into(),
       ))
@@ -276,5 +276,22 @@ mod tests {
       let name = DnsName::try_from(input.to_string());
       assert_eq!(*expected, name.is_ok());
     }
+  }
+
+  #[test]
+  fn test_try_from_bytes() {
+    use super::DnsName;
+
+    let name = DnsName::try_from(b"localhost".as_slice()).unwrap();
+    assert_eq!("localhost", name.as_str());
+
+    let name = DnsName::try_from(b"localhost.".as_slice()).unwrap();
+    assert_eq!("localhost", name.as_str());
+
+    let name = DnsName::try_from(b"labelendswithnumber1.bar.com".as_slice()).unwrap();
+    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+
+    let name = DnsName::try_from(b"labelendswithnumber1.bar.com.".as_slice()).unwrap();
+    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
   }
 }

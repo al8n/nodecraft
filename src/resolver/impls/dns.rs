@@ -77,8 +77,9 @@ impl DnsResolverOptions {
   }
 
   /// Set the default dns configuration
-  pub fn set_resolver_config(&mut self, c: ResolverConfig) {
+  pub fn set_resolver_config(&mut self, c: ResolverConfig) -> &mut Self {
     self.resolver_config = c;
+    self
   }
 
   /// Returns the resolver configuration
@@ -93,8 +94,9 @@ impl DnsResolverOptions {
   }
 
   /// Set the default resolver options
-  pub fn set_resolver_opts(&mut self, o: ResolverOpts) {
+  pub fn set_resolver_opts(&mut self, o: ResolverOpts) -> &mut Self {
     self.resolver_opts = o;
+    self
   }
 
   /// Returns the resolver options
@@ -275,5 +277,31 @@ mod tests {
 
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
+  }
+
+  #[tokio::test]
+  async fn test_dns_resolver_without_dns() {
+    use agnostic::tokio::TokioRuntime;
+
+    let resolver =
+      DnsResolver::<TokioRuntime>::with_record_ttl(None, Duration::from_millis(100)).unwrap();
+    let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+    resolver.resolve(&google_addr).await.unwrap();
+    let dns_name = DnsName::try_from("google.com").unwrap();
+    assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
+  }
+
+  #[test]
+  fn test_opts() {
+    let opts = DnsResolverOptions::new();
+    let opts = opts.with_resolver_config(Default::default());
+    opts.resolver_config();
+    let mut opts = opts.with_resolver_opts(Default::default());
+    opts.resolver_opts();
+    opts.set_resolver_config(Default::default());
+    opts.set_resolver_opts(Default::default());
   }
 }

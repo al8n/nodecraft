@@ -19,9 +19,7 @@ pub struct NodeAddressResolverOptions {
 
 impl Default for NodeAddressResolverOptions {
   fn default() -> Self {
-    Self {
-      record_ttl: default_record_ttl(),
-    }
+    Self::new()
   }
 }
 
@@ -31,22 +29,29 @@ const fn default_record_ttl() -> Duration {
 
 impl NodeAddressResolverOptions {
   /// Create a new [`NodeAddressResolverOptions`].
-  pub fn new() -> Self {
-    Self::default()
+  #[inline]
+  pub const fn new() -> Self {
+    Self {
+      record_ttl: default_record_ttl(),
+    }
   }
 
   /// Set the DNS record ttl in builder pattern
+  #[inline]
   pub const fn with_record_ttl(mut self, val: Duration) -> Self {
     self.record_ttl = val;
     self
   }
 
   /// Set the DNS record ttl
-  pub fn set_record_ttl(&mut self, val: Duration) {
+  #[inline]
+  pub fn set_record_ttl(&mut self, val: Duration) -> &mut Self {
     self.record_ttl = val;
+    self
   }
 
   /// Returns the DNS record ttl
+  #[inline]
   pub const fn record_ttl(&self) -> Duration {
     self.record_ttl
   }
@@ -166,7 +171,7 @@ mod resolver {
     async fn test_dns_resolver() {
       use agnostic::tokio::TokioRuntime;
 
-      let resolver = NodeAddressResolver::<TokioRuntime>::new(Default::default());
+      let resolver = NodeAddressResolver::<TokioRuntime>::default();
       let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
       let ip = resolver.resolve(&google_addr).await.unwrap();
       println!("google.com:8080 resolved to: {}", ip);
@@ -275,7 +280,7 @@ mod resolver {
 
     #[tokio::test]
     async fn test_dns_resolver() {
-      let resolver = NodeAddressResolver::new(Default::default());
+      let resolver = NodeAddressResolver::default();
       let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
       let ip = resolver.resolve(&google_addr).await.unwrap();
       println!("google.com:8080 resolved to: {}", ip);
@@ -294,5 +299,20 @@ mod resolver {
       tokio::time::sleep(Duration::from_millis(100)).await;
       assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_opts() {
+    let opts = NodeAddressResolverOptions::default();
+    assert_eq!(opts.record_ttl(), default_record_ttl());
+    let mut opts = opts.with_record_ttl(Duration::from_secs(10));
+    assert_eq!(opts.record_ttl(), Duration::from_secs(10));
+    opts.set_record_ttl(Duration::from_secs(11));
+    assert_eq!(opts.record_ttl(), Duration::from_secs(11));
   }
 }

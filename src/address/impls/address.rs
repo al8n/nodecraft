@@ -319,17 +319,21 @@ impl NodeAddress {
   }
 
   /// Returns the port
+  #[inline]
   pub const fn port(&self) -> u16 {
     self.port
   }
 
   /// Set the port
-  pub fn set_port(&mut self, port: u16) {
+  #[inline]
+  pub fn set_port(&mut self, port: u16) -> &mut Self {
     self.port = port;
+    self
   }
 
   /// Set the port in builder pattern
-  pub fn with_port(mut self, port: u16) -> Self {
+  #[inline]
+  pub const fn with_port(mut self, port: u16) -> Self {
     self.port = port;
     self
   }
@@ -693,7 +697,6 @@ fn encoded_len(this: &NodeAddress) -> usize {
   }
 }
 
-#[cfg(any(feature = "transformable", feature = "serde"))]
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -744,6 +747,48 @@ mod tests {
         port,
       }
     }
+  }
+
+  #[test]
+  fn test_ord() {
+    let v4 = NodeAddress::random_v4_address();
+    let v6 = NodeAddress::random_v6_address();
+    let domain = NodeAddress::random_domain_address(32);
+    let domain2 = NodeAddress::random_domain_address(63);
+    let mut vec = [v4, v6, domain, domain2];
+    vec.sort();
+    println!("{:?}", vec);
+
+    let v4 = NodeAddress::random_v4_address();
+    let v6 = NodeAddress::random_v6_address();
+    let domain = NodeAddress::random_domain_address(32);
+    let domain2 = NodeAddress::random_domain_address(63);
+
+    let mut v4 = v4.with_port(200);
+    assert_eq!(v4.port(), 200);
+    v4.set_port(100);
+    assert_eq!(v4.port(), 100);
+    let mut v6 = v6.with_port(200);
+    assert_eq!(v6.port(), 200);
+    v6.set_port(100);
+    assert_eq!(v6.port(), 100);
+
+    let mut domain = domain.with_port(200);
+    assert_eq!(domain.port(), 200);
+    domain.set_port(100);
+    assert_eq!(domain.port(), 100);
+    assert!(domain.ip().is_none());
+    assert!(domain.domain().is_some());
+
+    let mut domain2 = domain2.with_port(200);
+    assert_eq!(domain2.port(), 200);
+    domain2.set_port(100);
+    assert_eq!(domain2.port(), 100);
+    assert!(domain2.ip().is_none());
+    assert!(domain2.domain().is_some());
+
+    let mut vec = [v4, v6, domain, domain2];
+    vec.sort();
   }
 
   #[cfg(feature = "transformable")]
