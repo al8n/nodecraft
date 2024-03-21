@@ -318,3 +318,203 @@ impl core::fmt::Debug for NodeId {
 }
 
 impl cheap_clone::CheapClone for NodeId {}
+
+impl From<NodeId> for SmolStr {
+  fn from(id: NodeId) -> Self {
+    id.0
+  }
+}
+
+impl TryFrom<&[u8]> for NodeId {
+  type Error = NodeIdTransformError;
+
+  fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+    Self::new(core::str::from_utf8(value)?)
+  }
+}
+
+impl TryFrom<Vec<u8>> for NodeId {
+  type Error = NodeIdTransformError;
+
+  fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+    let s =
+      String::from_utf8(value).map_err(|e| NodeIdTransformError::Utf8Error(e.utf8_error()))?;
+
+    if s.len() > Self::MAX_SIZE {
+      return Err(NodeIdTransformError::TooLarge(s.len()));
+    }
+
+    if s.is_empty() {
+      return Err(NodeIdTransformError::Empty);
+    }
+
+    Ok(Self(s.into()))
+  }
+}
+
+impl TryFrom<String> for NodeId {
+  type Error = NodeIdTransformError;
+
+  fn try_from(s: String) -> Result<Self, Self::Error> {
+    if s.len() > Self::MAX_SIZE {
+      return Err(NodeIdTransformError::TooLarge(s.len()));
+    }
+
+    if s.is_empty() {
+      return Err(NodeIdTransformError::Empty);
+    }
+
+    Ok(Self(s.into()))
+  }
+}
+
+#[cfg(any(feature = "transformable", feature = "serde"))]
+#[cfg(test)]
+mod tests {
+  use rand::{distributions::Alphanumeric, thread_rng};
+
+  use super::*;
+
+  impl NodeId {
+    fn random(size: usize) -> Self {
+      use rand::Rng;
+      let id = thread_rng()
+        .sample_iter(Alphanumeric)
+        .take(size)
+        .collect::<Vec<u8>>();
+
+      NodeId::try_from(id).unwrap()
+    }
+  }
+
+  #[cfg(feature = "transformable")]
+  #[test]
+  fn test_transformable() {
+    let id = NodeId::random(32);
+    let mut buf = vec![0; id.encoded_len()];
+    id.encode(&mut buf).unwrap();
+    let (size, decoded) = NodeId::decode(&buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(96);
+    let mut buf = vec![0; id.encoded_len()];
+    id.encode(&mut buf).unwrap();
+    let (size, decoded) = NodeId::decode(&buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+  }
+
+  #[cfg(feature = "transformable")]
+  #[test]
+  fn test_transformable_io() {
+    use std::io::Cursor;
+
+    let id = NodeId::random(32);
+    let mut buf = Vec::new();
+    id.encode_to_writer(&mut buf).unwrap();
+    let mut buf = Cursor::new(buf);
+    let (size, decoded) = NodeId::decode_from_reader(&mut buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(96);
+    let mut buf = Vec::new();
+    id.encode_to_writer(&mut buf).unwrap();
+    let mut buf = Cursor::new(buf);
+    let (size, decoded) = NodeId::decode_from_reader(&mut buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(32);
+    let mut buf = vec![0; id.encoded_len()];
+    id.encode(&mut buf).unwrap();
+    let mut buf = Cursor::new(buf);
+    let (size, decoded) = NodeId::decode_from_reader(&mut buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(96);
+    let mut buf = vec![0; id.encoded_len()];
+    id.encode(&mut buf).unwrap();
+    let mut buf = Cursor::new(buf);
+    let (size, decoded) = NodeId::decode_from_reader(&mut buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(32);
+    let mut buf = Vec::new();
+    id.encode_to_writer(&mut buf).unwrap();
+    let (size, decoded) = NodeId::decode(&buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(96);
+    let mut buf = Vec::new();
+    id.encode_to_writer(&mut buf).unwrap();
+    let (size, decoded) = NodeId::decode(&buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+  }
+
+  #[cfg(all(feature = "async", feature = "transformable"))]
+  #[tokio::test]
+  async fn test_transformable_async_io() {
+    use futures::io::Cursor;
+
+    let id = NodeId::random(32);
+    let mut buf = Vec::new();
+    id.encode_to_async_writer(&mut buf).await.unwrap();
+    let mut buf = Cursor::new(buf);
+    let (size, decoded) = NodeId::decode_from_async_reader(&mut buf).await.unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(96);
+    let mut buf = Vec::new();
+    id.encode_to_async_writer(&mut buf).await.unwrap();
+    let mut buf = Cursor::new(buf);
+    let (size, decoded) = NodeId::decode_from_async_reader(&mut buf).await.unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(32);
+    let mut buf = vec![0; id.encoded_len()];
+    id.encode(&mut buf).unwrap();
+    let mut buf = Cursor::new(buf);
+    let (size, decoded) = NodeId::decode_from_async_reader(&mut buf).await.unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(96);
+    let mut buf = vec![0; id.encoded_len()];
+    id.encode(&mut buf).unwrap();
+    let mut buf = Cursor::new(buf);
+    let (size, decoded) = NodeId::decode_from_async_reader(&mut buf).await.unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(32);
+    let mut buf = Vec::new();
+    id.encode_to_async_writer(&mut buf).await.unwrap();
+    let (size, decoded) = NodeId::decode(&buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+
+    let id = NodeId::random(96);
+    let mut buf = Vec::new();
+    id.encode_to_writer(&mut buf).unwrap();
+    let (size, decoded) = NodeId::decode(&buf).unwrap();
+    assert_eq!(size, id.encoded_len());
+    assert_eq!(id, decoded);
+  }
+
+  #[cfg(feature = "serde")]
+  #[test]
+  fn test_serde() {
+    let id = NodeId::random(32);
+    let s = serde_json::to_string(&id).unwrap();
+    let decoded: NodeId = serde_json::from_str(&s).unwrap();
+    assert_eq!(id, decoded);
+  }
+}

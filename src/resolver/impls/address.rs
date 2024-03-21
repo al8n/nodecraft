@@ -157,6 +157,37 @@ mod resolver {
       }
     }
   }
+
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_dns_resolver() {
+      use agnostic::tokio::TokioRuntime;
+
+      let resolver = NodeAddressResolver::<TokioRuntime>::new(Default::default());
+      let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+      let ip = resolver.resolve(&google_addr).await.unwrap();
+      println!("google.com:8080 resolved to: {}", ip);
+    }
+
+    #[tokio::test]
+    async fn test_dns_resolver_with_record_ttl() {
+      use agnostic::tokio::TokioRuntime;
+
+      let resolver = NodeAddressResolver::<TokioRuntime>::new(
+        NodeAddressResolverOptions::new().with_record_ttl(Duration::from_millis(100)),
+      );
+      let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+      resolver.resolve(&google_addr).await.unwrap();
+      let dns_name = DnsName::try_from("google.com").unwrap();
+      assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
+
+      tokio::time::sleep(Duration::from_millis(100)).await;
+      assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
+    }
+  }
 }
 
 #[cfg(not(feature = "agnostic"))]
@@ -235,6 +266,33 @@ mod resolver {
         record_ttl: opts.record_ttl,
         cache: Default::default(),
       }
+    }
+  }
+
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_dns_resolver() {
+      let resolver = NodeAddressResolver::new(Default::default());
+      let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+      let ip = resolver.resolve(&google_addr).await.unwrap();
+      println!("google.com:8080 resolved to: {}", ip);
+    }
+
+    #[tokio::test]
+    async fn test_dns_resolver_with_record_ttl() {
+      let resolver = NodeAddressResolver::new(
+        NodeAddressResolverOptions::new().with_record_ttl(Duration::from_millis(100)),
+      );
+      let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+      resolver.resolve(&google_addr).await.unwrap();
+      let dns_name = DnsName::try_from("google.com").unwrap();
+      assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
+
+      tokio::time::sleep(Duration::from_millis(100)).await;
+      assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
     }
   }
 }

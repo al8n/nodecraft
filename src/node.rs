@@ -362,3 +362,120 @@ const _: () = {
     }
   }
 };
+
+#[cfg(any(feature = "transformable", feature = "serde"))]
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use rand::distributions::Alphanumeric;
+  use smol_str::SmolStr;
+
+  fn random(size: usize) -> Node<SmolStr, u64> {
+    use rand::{thread_rng, Rng};
+    let id = thread_rng()
+      .sample_iter(Alphanumeric)
+      .take(size)
+      .collect::<Vec<u8>>();
+
+    Node::new(
+      SmolStr::from(String::from_utf8(id).unwrap()),
+      thread_rng().gen(),
+    )
+  }
+
+  #[cfg(feature = "transformable")]
+  #[test]
+  fn test_transformable() {
+    use transformable::Transformable;
+
+    let node = random(10);
+    let mut buf = vec![0u8; node.encoded_len()];
+    let len = node.encoded_len();
+    let encoded = node.encode(&mut buf).unwrap();
+    assert_eq!(len, encoded);
+    let (decoded, decoded_node) = Node::<SmolStr, u64>::decode(&buf).unwrap();
+    assert_eq!(decoded, len);
+    assert_eq!(node, decoded_node);
+
+    let node = random(100);
+    let mut buf = vec![0u8; node.encoded_len()];
+    let len = node.encoded_len();
+    let encoded = node.encode(&mut buf).unwrap();
+    assert_eq!(len, encoded);
+    let (decoded, decoded_node) = Node::<SmolStr, u64>::decode(&buf).unwrap();
+    assert_eq!(decoded, len);
+    assert_eq!(node, decoded_node);
+  }
+
+  #[cfg(feature = "transformable")]
+  #[test]
+  fn test_transformable_io() {
+    use std::io::Cursor;
+    use transformable::Transformable;
+
+    let node = random(10);
+    let mut buf = Vec::new();
+    let len = node.encoded_len();
+    let encoded = node.encode_to_writer(&mut buf).unwrap();
+    assert_eq!(len, encoded);
+    let mut buf = Cursor::new(buf);
+    let (len, decoded_node) = Node::<SmolStr, u64>::decode_from_reader(&mut buf).unwrap();
+    assert_eq!(len, encoded);
+    assert_eq!(node, decoded_node);
+
+    let node = random(100);
+    let mut buf = Vec::new();
+    let len = node.encoded_len();
+    let encoded = node.encode_to_writer(&mut buf).unwrap();
+    assert_eq!(len, encoded);
+    let mut buf = Cursor::new(buf);
+    let (len, decoded_node) = Node::<SmolStr, u64>::decode_from_reader(&mut buf).unwrap();
+    assert_eq!(len, encoded);
+    assert_eq!(node, decoded_node);
+  }
+
+  #[cfg(all(feature = "async", feature = "transformable"))]
+  #[tokio::test]
+  async fn test_transformable_async_io() {
+    use futures::io::Cursor;
+    use transformable::Transformable;
+
+    let node = random(10);
+    let mut buf = Vec::new();
+    let len = node.encoded_len();
+    let encoded = node.encode_to_async_writer(&mut buf).await.unwrap();
+    assert_eq!(len, encoded);
+    let mut buf = Cursor::new(buf);
+    let (len, decoded_node) = Node::<SmolStr, u64>::decode_from_async_reader(&mut buf)
+      .await
+      .unwrap();
+    assert_eq!(len, encoded);
+    assert_eq!(node, decoded_node);
+
+    let node = random(100);
+    let mut buf = Vec::new();
+    let len = node.encoded_len();
+    let encoded = node.encode_to_async_writer(&mut buf).await.unwrap();
+    assert_eq!(len, encoded);
+    let mut buf = Cursor::new(buf);
+    let (len, decoded_node) = Node::<SmolStr, u64>::decode_from_async_reader(&mut buf)
+      .await
+      .unwrap();
+    assert_eq!(len, encoded);
+    assert_eq!(node, decoded_node);
+  }
+
+  #[cfg(feature = "serde")]
+  #[test]
+  fn test_serde() {
+    let node = random(10);
+    let serialized = serde_json::to_string(&node).unwrap();
+    let deserialized: Node<SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(node, deserialized);
+
+    let node = random(100);
+    let serialized = serde_json::to_string(&node).unwrap();
+    let deserialized: Node<SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(node, deserialized);
+  }
+}

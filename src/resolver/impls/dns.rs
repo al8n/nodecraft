@@ -244,3 +244,36 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[tokio::test]
+  async fn test_dns_resolver() {
+    use agnostic::tokio::TokioRuntime;
+
+    let resolver = DnsResolver::<TokioRuntime>::new(Some(Default::default())).unwrap();
+    let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+    let ip = resolver.resolve(&google_addr).await.unwrap();
+    println!("google.com:8080 resolved to: {}", ip);
+  }
+
+  #[tokio::test]
+  async fn test_dns_resolver_with_record_ttl() {
+    use agnostic::tokio::TokioRuntime;
+
+    let resolver = DnsResolver::<TokioRuntime>::with_record_ttl(
+      Some(Default::default()),
+      Duration::from_millis(100),
+    )
+    .unwrap();
+    let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+    resolver.resolve(&google_addr).await.unwrap();
+    let dns_name = DnsName::try_from("google.com").unwrap();
+    assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
+  }
+}

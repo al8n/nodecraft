@@ -1,13 +1,13 @@
 //! Crafting seamless node operations for distributed systems, which provides foundational traits for node identification and address resolution.
 #![deny(missing_docs, warnings)]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", test))]
 extern crate std;
 
 mod address;
