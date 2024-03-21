@@ -8,6 +8,9 @@ use crate::{Id, Transformable};
 #[cfg(feature = "std")]
 use crate::utils::invalid_data;
 
+#[cfg(not(all(feature = "std", feature = "alloc")))]
+use ::alloc::{string::String, vec::Vec};
+
 /// Errors that can occur when transforming an [`NodeId`].
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
@@ -333,6 +336,7 @@ impl TryFrom<&[u8]> for NodeId {
   }
 }
 
+#[cfg(feature = "alloc")]
 impl TryFrom<Vec<u8>> for NodeId {
   type Error = NodeIdTransformError;
 
@@ -352,6 +356,7 @@ impl TryFrom<Vec<u8>> for NodeId {
   }
 }
 
+#[cfg(feature = "alloc")]
 impl TryFrom<String> for NodeId {
   type Error = NodeIdTransformError;
 

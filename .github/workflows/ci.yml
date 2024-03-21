@@ -53,17 +53,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
+    - name: Install OpenSSL (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: powershell
+      run: |
+        echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+        vcpkg install openssl:x64-windows-static-md
     - name: Install Rust
       # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
       run: rustup update nightly --no-self-update && rustup default nightly && rustup component add clippy
     - name: Install cargo-hack
       run: cargo install cargo-hack
     - name: Apply clippy lints (unix)
-      run: cargo hack build --each-feature
-      if: matrix.os != 'windows-latest'
-    - name: Apply clippy lints (windows)
-      run: cargo hack build --each-feature --exclude-features dns-over-openssl,dnssec-openssl
-      if: matrix.os == 'windows-latest'
+      run: cargo hack clippy --each-feature 
 
   build:
     name: build
@@ -92,7 +94,7 @@ jobs:
       with:
         path: ~/.cargo
         key: ${{ runner.os }}-coverage-dotcargo
-    - name: Run build (unix)
+    - name: Run build
       run: cargo hack build --feature-powerset --group-features dns,dns-over-quic,dns-over-https-rustls,dns-over-rustls,dns-over-openssl,dns-over-native-tls,dns-webpki-roots,dns-native-certs,dnssec-openssl,dnssec-ring,dnssec --exclude-features tracing
 
   coverage:
