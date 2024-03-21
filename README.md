@@ -17,10 +17,15 @@ Crafting seamless node operations for distributed systems, which provides founda
 </div>
 
 ## Installation
+
 ```toml
 [dependencies]
-nodecraft = "0.1"
+nodecraft = "0.3"
 ```
+
+## Examples
+
+See [`memberlist`](https://github.com/al8n/memberlist), an async runtime agnostic GOSSIP protocol implementation.
 
 ## License
 
