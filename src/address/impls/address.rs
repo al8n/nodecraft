@@ -729,8 +729,10 @@ mod tests {
     fn random_domain_address(size: u8) -> Self {
       // create a random domain address
       let mut rng = thread_rng();
+
       let domain = thread_rng()
         .sample_iter(Alphanumeric)
+        .filter(|c| c.is_ascii_alphabetic())
         .take(size as usize)
         .collect::<Vec<u8>>();
       let domain = String::from_utf8(domain).unwrap();
@@ -750,7 +752,7 @@ mod tests {
     let v4 = NodeAddress::random_v4_address();
     let v6 = NodeAddress::random_v6_address();
     let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(96);
+    let domain2 = NodeAddress::random_domain_address(63);
 
     let mut buf = vec![0; v4.encoded_len()];
     v4.encode(&mut buf).unwrap();
@@ -785,7 +787,7 @@ mod tests {
     let v4 = NodeAddress::random_v4_address();
     let v6 = NodeAddress::random_v6_address();
     let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(96);
+    let domain2 = NodeAddress::random_domain_address(63);
 
     let mut buf = Vec::new();
     v4.encode_to_writer(&mut buf).unwrap();
@@ -868,7 +870,7 @@ mod tests {
     let v4 = NodeAddress::random_v4_address();
     let v6 = NodeAddress::random_v6_address();
     let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(96);
+    let domain2 = NodeAddress::random_domain_address(63);
 
     let mut buf = Vec::new();
     v4.encode_to_async_writer(&mut buf).await.unwrap();
@@ -947,7 +949,7 @@ mod tests {
   fn test_serde() {
     let v4 = NodeAddress::random_v4_address();
     let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(64);
+    let domain = NodeAddress::random_domain_address(63);
 
     let v4_str = serde_json::to_string(&v4).unwrap();
     let v6_str = serde_json::to_string(&v6).unwrap();
