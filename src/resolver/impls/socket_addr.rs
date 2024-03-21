@@ -8,21 +8,21 @@ pub use resolver::SocketAddrResolver;
 mod resolver {
   use super::*;
 
-  use agnostic::Runtime;
+  use agnostic_lite::RuntimeLite;
 
   /// The [`AddressResolver::Address`] of the [`SocketAddrResolver`] is [`SocketAddr`].
   /// So it just returns the given address and impossible to return an error.
   ///
   /// If you want a more powerful [`AddressResolver`] implementation,
   /// please see [`DnsResolver`](crate::transport::resolver::dns::DnsResolver).
-  pub struct SocketAddrResolver<R: Runtime>(std::marker::PhantomData<R>);
+  pub struct SocketAddrResolver<R: RuntimeLite>(std::marker::PhantomData<R>);
 
-  impl<R: Runtime> Default for SocketAddrResolver<R> {
+  impl<R: RuntimeLite> Default for SocketAddrResolver<R> {
     fn default() -> Self {
       Self(std::marker::PhantomData)
     }
   }
-  impl<R: Runtime> SocketAddrResolver<R> {
+  impl<R: RuntimeLite> SocketAddrResolver<R> {
     /// Creates a new `SocketAddrResolver`.
     #[inline]
     pub const fn new() -> Self {
@@ -30,7 +30,7 @@ mod resolver {
     }
   }
 
-  impl<R: Runtime> AddressResolver for SocketAddrResolver<R> {
+  impl<R: RuntimeLite> AddressResolver for SocketAddrResolver<R> {
     type Address = SocketAddr;
     type ResolvedAddress = SocketAddr;
     type Error = Infallible;

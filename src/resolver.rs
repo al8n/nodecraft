@@ -6,6 +6,9 @@ mod impls;
 use cheap_clone::CheapClone;
 pub use impls::*;
 
+#[cfg(feature = "agnostic")]
+pub use agnostic_lite::*;
+
 #[cfg(not(feature = "agnostic"))]
 /// Used to resolve a [`SocketAddr`] from a node address in async style.
 pub trait AddressResolver: Send + Sync + 'static {
@@ -63,7 +66,7 @@ pub trait AddressResolver: Send + Sync + 'static {
   type Error: std::error::Error + Send + Sync + 'static;
 
   /// The runtime used to resolve the address.
-  type Runtime: agnostic::Runtime;
+  type Runtime: agnostic_lite::RuntimeLite;
 
   /// Resolves the given node address to a [`SocketAddr`].
   fn resolve(

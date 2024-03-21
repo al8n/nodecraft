@@ -63,7 +63,7 @@ pub use resolver::NodeAddressResolver;
 mod resolver {
   use super::*;
 
-  use agnostic::Runtime;
+  use agnostic_lite::RuntimeLite;
 
   /// A resolver which supports both `domain:port` and socket address. However,
   /// it will only use [`ToSocketAddrs`](std::net::ToSocketAddrs)
@@ -82,19 +82,19 @@ mod resolver {
   /// 2. `[::1]:8080` // ipv6
   /// 3. `127.0.0.1:8080` // ipv4
   ///
-  pub struct NodeAddressResolver<R: Runtime> {
+  pub struct NodeAddressResolver<R> {
     cache: SkipMap<DnsName, CachedSocketAddr>,
     record_ttl: Duration,
     _marker: std::marker::PhantomData<R>,
   }
 
-  impl<R: Runtime> Default for NodeAddressResolver<R> {
+  impl<R> Default for NodeAddressResolver<R> {
     fn default() -> Self {
       Self::new(Default::default())
     }
   }
 
-  impl<R: Runtime> AddressResolver for NodeAddressResolver<R> {
+  impl<R: RuntimeLite> AddressResolver for NodeAddressResolver<R> {
     type Address = NodeAddress;
     type ResolvedAddress = SocketAddr;
     type Error = std::io::Error;
@@ -152,7 +152,7 @@ mod resolver {
     }
   }
 
-  impl<R: Runtime> NodeAddressResolver<R> {
+  impl<R> NodeAddressResolver<R> {
     /// Create a new [`NodeAddressResolver`] with the given options.
     pub fn new(opts: NodeAddressResolverOptions) -> Self {
       Self {
