@@ -373,9 +373,10 @@ impl TryFrom<String> for NodeId {
   }
 }
 
-#[cfg(any(feature = "transformable", feature = "serde"))]
 #[cfg(test)]
 mod tests {
+  use core::str::FromStr;
+
   use rand::{distributions::Alphanumeric, thread_rng};
 
   use super::*;
@@ -392,13 +393,62 @@ mod tests {
     }
   }
 
+  #[test]
+  fn test_basic() {
+    let id = NodeId::try_from(b"test".as_slice()).unwrap();
+    assert_eq!(id.as_str(), "test");
+    assert_eq!(id.as_ref(), "test");
+    assert_eq!(id.as_bytes(), b"test");
+    println!("{id}");
+    println!("{id:?}");
+
+    let _id = NodeId::from_str("test1").unwrap();
+
+    assert!(NodeId::new("").is_err());
+    assert!(NodeId::new("a".repeat(513)).is_err());
+  }
+
+  #[test]
+  #[cfg(feature = "alloc")]
+  fn test_try_from() {
+    let id = NodeId::try_from(String::from("test")).unwrap();
+    assert_eq!(id.as_str(), "test");
+    assert_eq!(id.as_ref(), "test");
+    assert!(NodeId::try_from(String::new()).is_err());
+    assert!(NodeId::try_from(String::from("a".repeat(513))).is_err());
+
+    let id = NodeId::try_from(Vec::from("test".as_bytes())).unwrap();
+
+    assert_eq!(id.as_str(), "test");
+    assert_eq!(id.as_ref(), "test");
+    assert!(NodeId::try_from(Vec::new()).is_err());
+    assert!(NodeId::try_from("a".repeat(513).into_bytes()).is_err());
+
+    let id = SmolStr::from(id);
+    assert_eq!(id.as_str(), "test");
+  }
+
+  #[test]
+  #[cfg(feature = "std")]
+  fn test_borrow() {
+    use std::collections::HashSet;
+
+    let mut set = HashSet::new();
+    let id = NodeId::try_from(b"test".as_slice()).unwrap();
+    set.insert(id.clone());
+    assert!(set.contains("test"));
+  }
+
   #[cfg(feature = "transformable")]
   #[test]
   fn test_transformable() {
     let id = NodeId::random(32);
     let mut buf = vec![0; id.encoded_len()];
     id.encode(&mut buf).unwrap();
+    assert!(id.encode(&mut []).is_err());
     let (size, decoded) = NodeId::decode(&buf).unwrap();
+    assert!(NodeId::decode(&[]).is_err());
+    assert!(NodeId::decode(&[0, 1]).is_err());
     assert_eq!(size, id.encoded_len());
     assert_eq!(id, decoded);
 
@@ -427,6 +477,8 @@ mod tests {
     let mut buf = Vec::new();
     id.encode_to_writer(&mut buf).unwrap();
     let mut buf = Cursor::new(buf);
+    assert!(NodeId::decode_from_reader(&mut Cursor::new(&[])).is_err());
+    assert!(NodeId::decode_from_reader(&mut Cursor::new(&[255, 255])).is_err());
     let (size, decoded) = NodeId::decode_from_reader(&mut buf).unwrap();
     assert_eq!(size, id.encoded_len());
     assert_eq!(id, decoded);
@@ -480,6 +532,14 @@ mod tests {
     id.encode_to_async_writer(&mut buf).await.unwrap();
     let mut buf = Cursor::new(buf);
     let (size, decoded) = NodeId::decode_from_async_reader(&mut buf).await.unwrap();
+    assert!(NodeId::decode_from_async_reader(&mut Cursor::new(&[]))
+      .await
+      .is_err());
+    assert!(
+      NodeId::decode_from_async_reader(&mut Cursor::new(&[255, 255]))
+        .await
+        .is_err()
+    );
     assert_eq!(size, id.encoded_len());
     assert_eq!(id, decoded);
 

@@ -287,11 +287,22 @@ mod tests {
       DnsResolver::<TokioRuntime>::with_record_ttl(None, Duration::from_millis(100)).unwrap();
     let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
+    resolver.resolve(&google_addr).await.unwrap();
+    let ip_addr = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
+    resolver.resolve(&ip_addr).await.unwrap();
     let dns_name = DnsName::try_from("google.com").unwrap();
     assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
 
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
+    resolver.resolve(&google_addr).await.unwrap();
+
+    let err = ResolveError::from(ResolveErrorKind::NotFound(dns_name.clone()));
+    println!("{err}");
+    println!("{err:?}");
+
+    let bad_addr = NodeAddress::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();
+    assert!(resolver.resolve(&bad_addr).await.is_err());
   }
 
   #[test]

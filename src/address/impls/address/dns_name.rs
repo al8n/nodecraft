@@ -23,9 +23,21 @@ impl core::fmt::Display for DnsName {
   }
 }
 
+impl core::borrow::Borrow<str> for DnsName {
+  fn borrow(&self) -> &str {
+    self.as_str()
+  }
+}
+
+impl core::borrow::Borrow<SmolStr> for DnsName {
+  fn borrow(&self) -> &SmolStr {
+    &self.0
+  }
+}
+
 impl DnsName {
   /// Returns the str representation.
-  #[inline(always)]
+  #[inline]
   pub fn as_str(&self) -> &str {
     self.0.trim_end_matches('.')
   }
@@ -276,6 +288,27 @@ mod tests {
       let name = DnsName::try_from(input.to_string());
       assert_eq!(*expected, name.is_ok());
     }
+  }
+
+  #[cfg(feature = "alloc")]
+  #[test]
+  fn test_basic() {
+    let name = DnsName::try_from(&"localhost".to_string()).unwrap();
+    assert_eq!("localhost", name.as_ref());
+    let err = InvalidDnsNameError;
+    println!("{}", err);
+  }
+
+  #[cfg(feature = "std")]
+  #[test]
+  fn test_borrow() {
+    use std::collections::HashSet;
+    let name = DnsName::try_from("localhost").unwrap();
+    let mut set = HashSet::new();
+    set.insert(name);
+
+    assert!(set.contains("localhost"));
+    assert!(set.contains(&SmolStr::from("localhost")));
   }
 
   #[test]

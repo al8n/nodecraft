@@ -18,8 +18,9 @@ mod resolver {
   pub struct SocketAddrResolver<R: RuntimeLite>(std::marker::PhantomData<R>);
 
   impl<R: RuntimeLite> Default for SocketAddrResolver<R> {
+    #[inline]
     fn default() -> Self {
-      Self(std::marker::PhantomData)
+      Self::new()
     }
   }
   impl<R: RuntimeLite> SocketAddrResolver<R> {
@@ -38,6 +39,18 @@ mod resolver {
 
     async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
       Ok(*address)
+    }
+  }
+
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn resolve() {
+      let resolver = SocketAddrResolver::<agnostic_lite::tokio::TokioRuntime>::default();
+      let address = SocketAddr::new("127.0.0.1".parse().unwrap(), 8080);
+      assert_eq!(resolver.resolve(&address).await.unwrap(), address);
     }
   }
 }

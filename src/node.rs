@@ -16,14 +16,14 @@ pub struct Node<I, A> {
 }
 
 impl<I: Display, A: Display> Display for Node<I, A> {
-  #[inline(always)]
+  #[inline]
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     write!(f, "{}({})", self.id, self.address)
   }
 }
 
 impl<I, A> From<(I, A)> for Node<I, A> {
-  #[inline(always)]
+  #[inline]
   fn from((id, address): (I, A)) -> Self {
     Self { id, address }
   }
@@ -31,19 +31,19 @@ impl<I, A> From<(I, A)> for Node<I, A> {
 
 impl<I, A> Node<I, A> {
   /// Create a new node with id and address.
-  #[inline(always)]
+  #[inline]
   pub const fn new(id: I, address: A) -> Self {
     Self { id, address }
   }
 
   /// Returns the id of the node.
-  #[inline(always)]
+  #[inline]
   pub const fn id(&self) -> &I {
     &self.id
   }
 
   /// Returns the address of the node.
-  #[inline(always)]
+  #[inline]
   pub const fn address(&self) -> &A {
     &self.address
   }
@@ -77,14 +77,14 @@ impl<I, A> Node<I, A> {
   }
 
   /// Consumes the node and returns the id and address of the node.
-  #[inline(always)]
+  #[inline]
   pub fn into_components(self) -> (I, A) {
     (self.id, self.address)
   }
 }
 
 impl<I: CheapClone, A: CheapClone> CheapClone for Node<I, A> {
-  #[inline(always)]
+  #[inline]
   fn cheap_clone(&self) -> Self {
     Self {
       id: self.id.cheap_clone(),
@@ -116,7 +116,7 @@ const _: () = {
     I::Error: Clone,
     A::Error: Clone,
   {
-    #[inline(always)]
+    #[inline]
     fn clone(&self) -> Self {
       match self {
         Self::Id(e) => Self::Id(e.clone()),
@@ -139,7 +139,7 @@ const _: () = {
     I::Error: PartialEq,
     A::Error: PartialEq,
   {
-    #[inline(always)]
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
       match (self, other) {
         (Self::Id(e1), Self::Id(e2)) => e1 == e2,
@@ -163,7 +163,7 @@ const _: () = {
     I::Error: core::fmt::Debug,
     A::Error: core::fmt::Debug,
   {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
       match self {
         Self::Id(e) => write!(f, "Id({:?})", e),
@@ -179,7 +179,7 @@ const _: () = {
     I::Error: core::fmt::Display,
     A::Error: core::fmt::Display,
   {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
       match self {
         Self::Id(e) => write!(f, "{e}"),
@@ -277,7 +277,7 @@ const _: () = {
     I::Archived: Clone,
     A::Archived: Clone,
   {
-    #[inline(always)]
+    #[inline]
     fn clone(&self) -> Self {
       Self {
         id: self.id.clone(),
@@ -291,7 +291,7 @@ const _: () = {
     I::Archived: CheapClone,
     A::Archived: CheapClone,
   {
-    #[inline(always)]
+    #[inline]
     fn cheap_clone(&self) -> Self {
       Self {
         id: self.id.cheap_clone(),
@@ -312,7 +312,7 @@ const _: () = {
     I::Archived: PartialEq,
     A::Archived: PartialEq,
   {
-    #[inline(always)]
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
       self.id == other.id && self.address == other.address
     }
@@ -330,7 +330,7 @@ const _: () = {
     I::Archived: core::hash::Hash,
     A::Archived: core::hash::Hash,
   {
-    #[inline(always)]
+    #[inline]
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
       self.id.hash(state);
       self.address.hash(state);
@@ -342,7 +342,7 @@ const _: () = {
     I::Archived: core::fmt::Debug,
     A::Archived: core::fmt::Debug,
   {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
       f.debug_struct("ArchivedNode")
         .field("id", &self.id)
@@ -356,14 +356,13 @@ const _: () = {
     I::Archived: core::fmt::Display,
     A::Archived: core::fmt::Display,
   {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
       write!(f, "{}({})", self.id, self.address)
     }
   }
 };
 
-#[cfg(any(feature = "transformable", feature = "serde"))]
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -381,6 +380,31 @@ mod tests {
       SmolStr::from(String::from_utf8(id).unwrap()),
       thread_rng().gen(),
     )
+  }
+
+  #[test]
+  fn test_node_access() {
+    let mut node = random(10);
+    node.set_id(SmolStr::from("test"));
+    node.set_address(100);
+    assert_eq!(node.id(), "test");
+    assert_eq!(node.address(), &100);
+
+    let node = node
+      .cheap_clone()
+      .with_id(SmolStr::from("test2"))
+      .with_address(200);
+    assert_eq!(node.id(), "test2");
+    assert_eq!(node.address(), &200);
+
+    let (id, address) = node.into_components();
+    assert_eq!(id, "test2");
+    assert_eq!(address, 200);
+
+    let node = Node::from(("test3", 300));
+    assert_eq!(*node.id(), "test3");
+    assert_eq!(node.address(), &300);
+    println!("{}", node);
   }
 
   #[cfg(feature = "transformable")]

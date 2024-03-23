@@ -39,30 +39,8 @@ impl Ord for Kind {
     match (self, other) {
       (Self::Ip(a), Self::Ip(b)) => a.cmp(b),
       (Self::Dns(a), Self::Dns(b)) => a.cmp(b),
-      (Self::Ip(ip), Self::Dns(dns)) => match ip {
-        IpAddr::V4(ip) => {
-          let ip = ip.octets();
-          let dns = dns.as_str();
-          ip.as_slice().cmp(dns.as_bytes())
-        }
-        IpAddr::V6(ip) => {
-          let ip = ip.octets();
-          let dns = dns.as_str();
-          ip.as_slice().cmp(dns.as_bytes())
-        }
-      },
-      (Self::Dns(dns), Self::Ip(ip)) => match ip {
-        IpAddr::V4(ip) => {
-          let ip = ip.octets();
-          let dns = dns.as_str();
-          dns.as_bytes().cmp(ip.as_slice())
-        }
-        IpAddr::V6(ip) => {
-          let ip = ip.octets();
-          let dns = dns.as_str();
-          dns.as_bytes().cmp(ip.as_slice())
-        }
-      },
+      (Self::Ip(_), Self::Dns(_)) => core::cmp::Ordering::Less,
+      (Self::Dns(_), Self::Ip(_)) => core::cmp::Ordering::Greater,
     }
   }
 }
@@ -750,6 +728,21 @@ mod tests {
   }
 
   #[test]
+  fn test_basic() {
+    let addr = NodeAddress::from((IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080));
+    let domain = NodeAddress::try_from(String::from("google.com:8080")).unwrap();
+    let domain2 = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
+    assert!(addr.kind.partial_cmp(&domain2.kind) == Some(core::cmp::Ordering::Equal));
+    assert!(addr.cmp(&domain2) == core::cmp::Ordering::Equal);
+    println!("{}", addr);
+    println!("{}", domain);
+    assert!(addr.domain().is_none());
+    assert!(addr.ip().is_some());
+    assert!(domain.ip().is_none());
+    assert!(domain.domain().is_some());
+  }
+
+  #[test]
   fn test_ord() {
     let v4 = NodeAddress::random_v4_address();
     let v6 = NodeAddress::random_v6_address();
@@ -789,6 +782,14 @@ mod tests {
 
     let mut vec = [v4, v6, domain, domain2];
     vec.sort();
+
+    let v4 = NodeAddress::random_v4_address();
+    let v6 = NodeAddress::random_v6_address();
+    let domain = NodeAddress::random_domain_address(32);
+    assert!(v4 < domain);
+    assert!(v6 < domain);
+
+    assert_eq!(v4.partial_cmp(&domain), Some(core::cmp::Ordering::Less));
   }
 
   #[cfg(feature = "transformable")]
