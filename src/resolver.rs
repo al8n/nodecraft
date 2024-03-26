@@ -26,6 +26,14 @@ pub trait AddressResolver: Send + Sync + 'static {
   /// The error type returned by the resolver.
   type Error: std::error::Error + Send + Sync + 'static;
 
+  /// The options type used to configure the resolver.
+  type Options: Send + Sync + 'static;
+
+  /// Creates a new resolver with the given options.
+  fn new(options: Self::Options) -> impl Future<Output = Result<Self, Self::Error>> + Send
+  where
+    Self: Sized;
+
   /// Resolves the given node address to a [`SocketAddr`].
   fn resolve(
     &self,
@@ -67,6 +75,14 @@ pub trait AddressResolver: Send + Sync + 'static {
 
   /// The runtime used to resolve the address.
   type Runtime: agnostic_lite::RuntimeLite;
+
+  /// The options type used to configure the resolver.
+  type Options: Send + Sync + 'static;
+
+  /// Creates a new resolver with the given options.
+  fn new(options: Self::Options) -> impl Future<Output = Result<Self, Self::Error>> + Send
+  where
+    Self: Sized;
 
   /// Resolves the given node address to a [`SocketAddr`].
   fn resolve(

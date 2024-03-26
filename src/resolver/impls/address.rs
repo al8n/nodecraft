@@ -99,6 +99,16 @@ mod resolver {
     type ResolvedAddress = SocketAddr;
     type Error = std::io::Error;
     type Runtime = R;
+    type Options = NodeAddressResolverOptions;
+
+    #[inline]
+    async fn new(opts: Self::Options) -> Result<Self, Self::Error> {
+      Ok(Self {
+        record_ttl: opts.record_ttl,
+        cache: Default::default(),
+        _marker: Default::default(),
+      })
+    }
 
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       match &address.kind {
@@ -232,6 +242,15 @@ mod resolver {
     type Address = NodeAddress;
     type ResolvedAddress = SocketAddr;
     type Error = std::io::Error;
+    type Options = NodeAddressResolverOptions;
+
+    #[inline]
+    async fn new(opts: Self::Options) -> Result<Self, Self::Error> {
+      Ok(Self {
+        record_ttl: opts.record_ttl,
+        cache: Default::default(),
+      })
+    }
 
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       match &address.kind {

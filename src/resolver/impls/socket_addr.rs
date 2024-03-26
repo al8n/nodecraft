@@ -20,13 +20,6 @@ mod resolver {
   impl<R: RuntimeLite> Default for SocketAddrResolver<R> {
     #[inline]
     fn default() -> Self {
-      Self::new()
-    }
-  }
-  impl<R: RuntimeLite> SocketAddrResolver<R> {
-    /// Creates a new `SocketAddrResolver`.
-    #[inline]
-    pub const fn new() -> Self {
       Self(std::marker::PhantomData)
     }
   }
@@ -36,7 +29,14 @@ mod resolver {
     type ResolvedAddress = SocketAddr;
     type Error = Infallible;
     type Runtime = R;
+    type Options = ();
 
+    #[inline]
+    async fn new(_: Self::Options) -> Result<Self, Self::Error> {
+      Ok(Self::default())
+    }
+
+    #[inline]
     async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
       Ok(*address)
     }
@@ -72,17 +72,16 @@ mod resolver {
     }
   }
 
-  impl SocketAddrResolver {
-    /// Creates a new `SocketAddrResolver`.
-    pub const fn new() -> Self {
-      Self
-    }
-  }
-
   impl AddressResolver for SocketAddrResolver {
     type Address = SocketAddr;
     type ResolvedAddress = SocketAddr;
     type Error = Infallible;
+    type Options = ();
+
+    #[inline]
+    async fn new(_: Self::Options) -> Result<Self, Self::Error> {
+      Ok(Self)
+    }
 
     async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
       Ok(*address)

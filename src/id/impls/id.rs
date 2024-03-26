@@ -415,7 +415,7 @@ mod tests {
     assert_eq!(id.as_str(), "test");
     assert_eq!(id.as_ref(), "test");
     assert!(NodeId::try_from(String::new()).is_err());
-    assert!(NodeId::try_from(String::from("a".repeat(513))).is_err());
+    assert!(NodeId::try_from("a".repeat(513)).is_err());
 
     let id = NodeId::try_from(Vec::from("test".as_bytes())).unwrap();
 

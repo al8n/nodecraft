@@ -49,10 +49,10 @@ pub enum Error {
   Resolve(#[from] ResolveError),
 }
 
-/// The options used to construct a [`DnsResolver`].
+/// The options used to configure the DNS
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct DnsResolverOptions {
+pub struct DnsOptions {
   resolver_opts: ResolverOpts,
   resolver_config: ResolverConfig,
 }
@@ -61,7 +61,7 @@ const fn default_record_ttl() -> Duration {
   Duration::from_secs(60)
 }
 
-impl DnsResolverOptions {
+impl DnsOptions {
   /// Create a new [`DnsResolverOptions`] with the default DNS configurations.
   pub fn new() -> Self {
     Self {
@@ -105,9 +105,75 @@ impl DnsResolverOptions {
   }
 }
 
+impl Default for DnsOptions {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+/// The options used to construct a [`DnsResolver`].
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DnsResolverOptions {
+  #[cfg_attr(feature = "serde", serde(default = "default_record_ttl"))]
+  record_ttl: Duration,
+  dns: Option<DnsOptions>,
+}
+
 impl Default for DnsResolverOptions {
   fn default() -> Self {
     Self::new()
+  }
+}
+
+impl DnsResolverOptions {
+  /// Create a new [`DnsResolverOptions`] with the default DNS configurations.
+  #[inline]
+  pub fn new() -> Self {
+    Self {
+      record_ttl: default_record_ttl(),
+      dns: Some(DnsOptions::default()),
+    }
+  }
+
+  /// Set the default record ttl in builder pattern
+  #[inline]
+  pub const fn with_record_ttl(mut self, ttl: Duration) -> Self {
+    self.record_ttl = ttl;
+    self
+  }
+
+  /// Set the default record ttl
+  #[inline]
+  pub fn set_record_ttl(&mut self, ttl: Duration) -> &mut Self {
+    self.record_ttl = ttl;
+    self
+  }
+
+  /// Returns the record ttl
+  #[inline]
+  pub const fn record_ttl(&self) -> Duration {
+    self.record_ttl
+  }
+
+  /// Set the default dns configuration in builder pattern
+  #[inline]
+  pub fn with_dns(mut self, dns: Option<DnsOptions>) -> Self {
+    self.dns = dns;
+    self
+  }
+
+  /// Set the default dns configuration
+  #[inline]
+  pub fn set_dns(&mut self, dns: Option<DnsOptions>) -> &mut Self {
+    self.dns = dns;
+    self
+  }
+
+  /// Returns the dns configuration
+  #[inline]
+  pub const fn dns(&self) -> Option<&DnsOptions> {
+    self.dns.as_ref()
   }
 }
 
@@ -132,52 +198,32 @@ pub struct DnsResolver<R: Runtime> {
   cache: SkipMap<DnsName, CachedSocketAddr>,
 }
 
-impl<R: Runtime> DnsResolver<R> {
-  /// Create a new [`DnsResolver`] with the given options.
-  pub fn new(opts: Option<DnsResolverOptions>) -> Result<Self, Error> {
-    let dns = if let Some(opts) = opts {
-      Some(Dns::new(
-        opts.resolver_config,
-        opts.resolver_opts,
-        AsyncConnectionProvider::new(),
-      ))
-    } else {
-      None
-    };
-    Ok(Self {
-      dns,
-      record_ttl: default_record_ttl(),
-      cache: Default::default(),
-    })
-  }
-
-  /// Create a new [`DnsResolver`] with the given options and the ttl for the record.
-  pub fn with_record_ttl(
-    opts: Option<DnsResolverOptions>,
-    record_ttl: Duration,
-  ) -> Result<Self, Error> {
-    let dns = if let Some(opts) = opts {
-      Some(Dns::new(
-        opts.resolver_config,
-        opts.resolver_opts,
-        AsyncConnectionProvider::new(),
-      ))
-    } else {
-      None
-    };
-    Ok(Self {
-      dns,
-      record_ttl,
-      cache: Default::default(),
-    })
-  }
-}
-
 impl<R: Runtime> AddressResolver for DnsResolver<R> {
   type Address = NodeAddress;
   type Error = Error;
   type ResolvedAddress = SocketAddr;
   type Runtime = R;
+  type Options = DnsResolverOptions;
+
+  async fn new(opts: Self::Options) -> Result<Self, Self::Error>
+  where
+    Self: Sized,
+  {
+    let dns = if let Some(opts) = opts.dns {
+      Some(Dns::new(
+        opts.resolver_config,
+        opts.resolver_opts,
+        AsyncConnectionProvider::new(),
+      ))
+    } else {
+      None
+    };
+    Ok(Self {
+      dns,
+      record_ttl: opts.record_ttl,
+      cache: Default::default(),
+    })
+  }
 
   async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
     match &address.kind {
@@ -255,7 +301,9 @@ mod tests {
   async fn test_dns_resolver() {
     use agnostic::tokio::TokioRuntime;
 
-    let resolver = DnsResolver::<TokioRuntime>::new(Some(Default::default())).unwrap();
+    let resolver = DnsResolver::<TokioRuntime>::new(Default::default())
+      .await
+      .unwrap();
     let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
     let ip = resolver.resolve(&google_addr).await.unwrap();
     println!("google.com:8080 resolved to: {}", ip);
@@ -265,10 +313,10 @@ mod tests {
   async fn test_dns_resolver_with_record_ttl() {
     use agnostic::tokio::TokioRuntime;
 
-    let resolver = DnsResolver::<TokioRuntime>::with_record_ttl(
-      Some(Default::default()),
-      Duration::from_millis(100),
+    let resolver = DnsResolver::<TokioRuntime>::new(
+      DnsResolverOptions::default().with_record_ttl(Duration::from_millis(100)),
     )
+    .await
     .unwrap();
     let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
@@ -283,8 +331,13 @@ mod tests {
   async fn test_dns_resolver_without_dns() {
     use agnostic::tokio::TokioRuntime;
 
-    let resolver =
-      DnsResolver::<TokioRuntime>::with_record_ttl(None, Duration::from_millis(100)).unwrap();
+    let resolver = DnsResolver::<TokioRuntime>::new(
+      DnsResolverOptions::default()
+        .with_dns(None)
+        .with_record_ttl(Duration::from_millis(100)),
+    )
+    .await
+    .unwrap();
     let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
     resolver.resolve(&google_addr).await.unwrap();
@@ -307,12 +360,18 @@ mod tests {
 
   #[test]
   fn test_opts() {
-    let opts = DnsResolverOptions::new();
+    let opts = DnsOptions::new();
     let opts = opts.with_resolver_config(Default::default());
     opts.resolver_config();
     let mut opts = opts.with_resolver_opts(Default::default());
     opts.resolver_opts();
     opts.set_resolver_config(Default::default());
     opts.set_resolver_opts(Default::default());
+
+    let mut opts = DnsResolverOptions::new().with_dns(Some(opts));
+    opts.dns();
+    opts.set_dns(Some(Default::default()));
+    opts.set_record_ttl(Duration::from_secs(100));
+    opts.record_ttl();
   }
 }
