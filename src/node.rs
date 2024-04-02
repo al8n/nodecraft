@@ -3,7 +3,7 @@ use core::fmt::Display;
 use cheap_clone::CheapClone;
 
 /// Node is consist of id and address, which can be used as a identifier in a distributed system.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
   feature = "rkyv",
@@ -80,6 +80,63 @@ impl<I, A> Node<I, A> {
   #[inline]
   pub fn into_components(self) -> (I, A) {
     (self.id, self.address)
+  }
+
+  /// Maps an `Node<I, A>` to `Node<I, U>` by applying a function to the current node.
+  ///
+  /// # Example
+  ///
+  /// ```
+  /// use nodecraft::Node;
+  ///
+  /// let node = Node::new("test", 100u64);
+  /// let node = node.map_address(|address| address.to_string());
+  /// assert_eq!(node.address(), "100");
+  #[inline]
+  pub fn map_address<U>(self, f: impl FnOnce(A) -> U) -> Node<I, U> {
+    Node {
+      id: self.id,
+      address: f(self.address),
+    }
+  }
+
+  /// Maps an `Node<I, A>` to `Node<U, A>` by applying a function to the current node.
+  ///
+  /// # Example
+  ///
+  /// ```
+  /// use nodecraft::Node;
+  ///
+  /// let node = Node::new(1u64, 100u64);
+  /// let node = node.map_id(|id| id.to_string());
+  /// assert_eq!(node.id(), "1");
+  /// ```
+  #[inline]
+  pub fn map_id<U>(self, f: impl FnOnce(I) -> U) -> Node<U, A> {
+    Node {
+      id: f(self.id),
+      address: self.address,
+    }
+  }
+
+  /// Maps an `Node<I, A>` to `Node<U, V>` by applying a function to the current node.
+  ///
+  /// # Example
+  ///
+  /// ```
+  /// use nodecraft::Node;
+  ///
+  /// let node = Node::new(1u64, 100u64);
+  ///
+  /// let node = node.map(|id, address| (id.to_string(), address.to_string()));
+  ///
+  /// assert_eq!(node.id(), "1");
+  /// assert_eq!(node.address(), "100");
+  /// ```
+  #[inline]
+  pub fn map<U, V>(self, f: impl FnOnce(I, A) -> (U, V)) -> Node<U, V> {
+    let (id, address) = f(self.id, self.address);
+    Node { id, address }
   }
 }
 
