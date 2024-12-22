@@ -92,7 +92,7 @@ jobs:
         echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
         vcpkg install openssl:x64-windows-static-md
     - name: Cache ~/.cargo
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo
         key: ${{ runner.os }}-coverage-dotcargo
@@ -118,12 +118,12 @@ jobs:
           crate: cargo-tarpaulin
           version: latest
       - name: Cache ~/.cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: ${{ runner.os }}-coverage-dotcargo
       - name: Cache cargo build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: target
           key: ${{ runner.os }}-coverage-cargo-build-target
