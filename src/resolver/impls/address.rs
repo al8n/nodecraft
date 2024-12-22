@@ -231,7 +231,7 @@ mod resolver {
   /// to resolve the address.
   ///
   /// - If you can make sure, you always play with [`SocketAddr`], you may want to
-  /// use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
+  ///   use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
   /// - If you want to send DNS queries, you may want to use [`DnsResolver`](crate::resolver::dns::DnsResolver).
   ///
   /// **N.B.** If a domain contains multiple ip addresses, there is no guarantee that
