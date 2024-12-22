@@ -24,7 +24,7 @@ pub trait AddressResolver: Send + Sync + 'static {
     + Sync
     + 'static;
   /// The error type returned by the resolver.
-  type Error: std::error::Error + Send + Sync + 'static;
+  type Error: core::error::Error + Send + Sync + 'static;
 
   /// The options type used to configure the resolver.
   type Options: Send + Sync + 'static;
@@ -71,7 +71,7 @@ pub trait AddressResolver: Send + Sync + 'static {
     + 'static;
 
   /// The error type returned by the resolver.
-  type Error: std::error::Error + Send + Sync + 'static;
+  type Error: core::error::Error + Send + Sync + 'static;
 
   /// The runtime used to resolve the address.
   type Runtime: agnostic_lite::RuntimeLite;

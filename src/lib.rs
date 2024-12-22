@@ -1,4 +1,4 @@
-//! Crafting seamless node operations for distributed systems, which provides foundational traits for node identification and address resolution.
+#![doc = include_str!("../README.md")]
 #![deny(missing_docs, warnings)]
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

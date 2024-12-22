@@ -9,7 +9,7 @@ use cheap_clone::CheapClone;
   feature = "rkyv",
   derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
+#[cfg_attr(feature = "rkyv", rkyv(compare(PartialEq)))]
 pub struct Node<I, A> {
   id: I,
   address: A,
@@ -247,11 +247,10 @@ const _: () = {
     }
   }
 
-  #[cfg(feature = "std")]
-  impl<I: Transformable, A: Transformable> std::error::Error for NodeTransformError<I, A>
+  impl<I: Transformable, A: Transformable> core::error::Error for NodeTransformError<I, A>
   where
-    I::Error: std::error::Error,
-    A::Error: std::error::Error,
+    I::Error: core::error::Error,
+    A::Error: core::error::Error,
   {
   }
 
@@ -424,7 +423,7 @@ const _: () = {
 mod tests {
   use super::*;
   use rand::distributions::Alphanumeric;
-  use smol_str::SmolStr;
+  use smol_str03::SmolStr;
 
   fn random(size: usize) -> Node<SmolStr, u64> {
     use rand::{thread_rng, Rng};

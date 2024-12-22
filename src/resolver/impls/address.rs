@@ -70,7 +70,7 @@ mod resolver {
   /// to resolve the address.
   ///
   /// - If you can make sure, you always play with [`SocketAddr`], you may want to
-  /// use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
+  ///   use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
   /// - If you want to send DNS queries, you may want to use [`DnsResolver`](crate::resolver::dns::DnsResolver).
   ///
   /// **N.B.** If a domain contains multiple ip addresses, there is no guarantee that
@@ -115,7 +115,7 @@ mod resolver {
         Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
         Kind::Dns(name) => {
           // First, check cache
-          if let Some(ent) = self.cache.get(name) {
+          if let Some(ent) = self.cache.get(name.as_str()) {
             let val = ent.value();
             if !val.is_expired() {
               return Ok(val.val);
@@ -200,10 +200,20 @@ mod resolver {
       let ip_addr = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
       resolver.resolve(&ip_addr).await.unwrap();
       let dns_name = DnsName::try_from("google.com").unwrap();
-      assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
+      assert!(!resolver
+        .cache
+        .get(dns_name.as_str())
+        .unwrap()
+        .value()
+        .is_expired());
 
       tokio::time::sleep(Duration::from_millis(100)).await;
-      assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
+      assert!(resolver
+        .cache
+        .get(dns_name.as_str())
+        .unwrap()
+        .value()
+        .is_expired());
       resolver.resolve(&google_addr).await.unwrap();
 
       let bad_addr = NodeAddress::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();
@@ -221,7 +231,7 @@ mod resolver {
   /// to resolve the address.
   ///
   /// - If you can make sure, you always play with [`SocketAddr`], you may want to
-  /// use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
+  ///   use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
   /// - If you want to send DNS queries, you may want to use [`DnsResolver`](crate::resolver::dns::DnsResolver).
   ///
   /// **N.B.** If a domain contains multiple ip addresses, there is no guarantee that

@@ -18,10 +18,9 @@ pub(crate) use dns_name::{DnsName, InvalidDnsNameError};
   feature = "rkyv",
   derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
 #[cfg_attr(
   feature = "rkyv",
-  archive_attr(derive(PartialEq, Eq, PartialOrd, Ord, Hash))
+  rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
 pub(crate) enum Kind {
   Ip(IpAddr),
@@ -46,67 +45,39 @@ impl Ord for Kind {
 }
 
 /// An error which can be returned when parsing a [`NodeAddress`].
-#[derive(Debug)]
-#[cfg_attr(feature = "std", derive(thiserror::Error))]
+#[derive(Debug, thiserror::Error)]
 pub enum ParseNodeAddressError {
   /// Returned if the provided str is missing port.
-  #[cfg_attr(feature = "std", error("address is missing port"))]
+  #[error("address is missing port")]
   MissingPort,
   /// Returned if the provided str is not a valid address.
-  #[cfg_attr(feature = "std", error("invalid DNS name {0}"))]
+  #[error("invalid DNS name {0}")]
   InvalidDnsName(InvalidDnsNameError),
   /// Returned if the provided str is not a valid port.
-  #[cfg_attr(feature = "std", error("invalid port: {0}"))]
-  InvalidPort(#[cfg_attr(feature = "std", from)] std::num::ParseIntError),
-}
-
-#[cfg(not(feature = "std"))]
-impl core::fmt::Display for ParseNodeAddressError {
-  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    match self {
-      Self::MissingPort => write!(f, "address is missing port"),
-      Self::InvalidDnsName => write!(f, "invalid domain"),
-      Self::InvalidPort(port) => write!(f, "invalid port: {port}"),
-    }
-  }
+  #[error("invalid port: {0}")]
+  InvalidPort(#[from] core::num::ParseIntError),
 }
 
 /// An error which can be returned when encoding/decoding a [`NodeAddress`].
-#[derive(Debug)]
-#[cfg_attr(feature = "std", derive(thiserror::Error))]
+#[derive(Debug, thiserror::Error)]
 pub enum NodeAddressError {
   /// Returned if the provided buffer is too small.
-  #[cfg_attr(
-    feature = "std",
-    error(
-      "buffer is too small, use `Address::encoded_len` to pre-allocate a buffer with enough space"
-    )
+  #[error(
+    "buffer is too small, use `Address::encoded_len` to pre-allocate a buffer with enough space"
   )]
   EncodeBufferTooSmall,
   /// Returned if fail to parsing the domain address.
-  #[cfg_attr(feature = "std", error("{0}"))]
-  ParseNodeAddressError(#[cfg_attr(feature = "std", from)] ParseNodeAddressError),
+  #[error(transparent)]
+  ParseNodeAddressError(#[from] ParseNodeAddressError),
   /// Returned if the provided bytes is corrupted.
-  #[cfg_attr(feature = "std", error("{0}"))]
+  #[error("{0}")]
   Corrupted(&'static str),
   /// Returned if the provided bytes contains an unknown address tag.
-  #[cfg_attr(feature = "std", error("unknown address tag: {0}"))]
+  #[error("unknown address tag: {0}")]
   UnknownAddressTag(u8),
   /// Returned if the provided bytes is not a valid utf8 string.
-  #[cfg_attr(feature = "std", error("{0}"))]
-  Utf8Error(#[cfg_attr(feature = "std", from)] core::str::Utf8Error),
-}
-
-#[cfg(not(feature = "std"))]
-impl core::fmt::Display for NodeAddressError {
-  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    match self {
-      Self::EncodeBufferTooSmall => write!(f, "buffer is too small, use `Address::encoded_len` to pre-allocate a buffer with enough space"),
-      Self::ParseNodeAddressError(err) => write!(f, "{err}"),
-      Self::Corrupted(msg) => write!(f, "{msg}"),
-      Self::UnknownAddressTag(t) => write!(f, "unknown address tag: {t}"),
-    }
-  }
+  #[error(transparent)]
+  Utf8Error(#[from] core::str::Utf8Error),
 }
 
 /// A node address which supports both `domain:port` and socket address.
@@ -120,10 +91,9 @@ impl core::fmt::Display for NodeAddressError {
   feature = "rkyv",
   derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
 #[cfg_attr(
   feature = "rkyv",
-  archive_attr(derive(PartialEq, Eq, PartialOrd, Ord, Hash))
+  rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
 pub struct NodeAddress {
   pub(crate) kind: Kind,

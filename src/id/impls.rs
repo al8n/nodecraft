@@ -12,8 +12,10 @@ use ::alloc::sync::Arc;
 #[cfg(feature = "alloc")]
 impl super::Id for Arc<str> {}
 
-#[cfg(feature = "smol_str")]
-impl super::Id for smol_str::SmolStr {}
+#[cfg(feature = "smol_str02")]
+impl super::Id for smol_str02::SmolStr {}
+#[cfg(feature = "smol_str03")]
+impl super::Id for smol_str03::SmolStr {}
 
 mod numbers;
 

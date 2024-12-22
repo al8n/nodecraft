@@ -1,7 +1,7 @@
 use core::{borrow::Borrow, mem};
 
 use byteorder::{ByteOrder, NetworkEndian};
-use smol_str::SmolStr;
+use smol_str03::SmolStr;
 
 use crate::{Id, Transformable};
 
@@ -12,56 +12,23 @@ use crate::utils::invalid_data;
 use ::alloc::{string::String, vec::Vec};
 
 /// Errors that can occur when transforming an [`NodeId`].
-#[derive(Debug)]
-#[cfg_attr(feature = "std", derive(thiserror::Error))]
+#[derive(Debug, thiserror::Error)]
 pub enum NodeIdTransformError {
   /// Returned when the id is empty.
-  #[cfg_attr(feature = "std", error("id cannot be empty"))]
+  #[error("id cannot be empty")]
   Empty,
   /// Returned when the id is too large.
-  #[cfg_attr(
-    feature = "std",
-    error("id is too large, maximum size is 512 bytes, but got {0} bytes")
-  )]
+  #[error("id is too large, maximum size is 512 bytes, but got {0} bytes")]
   TooLarge(usize),
   /// Returned when the buffer is too small to encode the [`Id`].
-  #[cfg_attr(
-    feature = "std",
-    error("buffer is too small, use Id::encoded_size to pre-allocate a buffer with enough space")
-  )]
+  #[error("buffer is too small, use Id::encoded_size to pre-allocate a buffer with enough space")]
   EncodeBufferTooSmall,
   /// Returned when the id is corrupted.
-  #[cfg_attr(feature = "std", error("corrupted id"))]
+  #[error("corrupted id")]
   Corrupted,
   /// Returned when the id is not a valid utf8 string.
-  #[cfg_attr(feature = "std", error("{0}"))]
-  Utf8Error(#[cfg_attr(feature = "std", from)] core::str::Utf8Error),
-}
-
-#[cfg(not(feature = "std"))]
-impl core::convert::From<core::str::Utf8Error> for NodeIdTransformError {
-  fn from(err: core::str::Utf8Error) -> Self {
-    Self::Utf8Error(err)
-  }
-}
-
-#[cfg(not(feature = "std"))]
-impl core::fmt::Display for NodeIdTransformError {
-  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    match self {
-      Self::Empty => write!(f, "id cannot be empty"),
-      Self::TooLarge(num) => write!(
-        f,
-        "id is too large, maximum size is 512 bytes, but got {num} bytes"
-      ),
-      Self::EncodeBufferTooSmall => write!(
-        f,
-        "buffer is too small, use Id::encoded_size to pre-allocate a buffer with enough space"
-      ),
-      Self::Corrupted => write!(f, "corrupted id"),
-      Self::Utf8Error(val) => write!(f, "{val}"),
-    }
-  }
+  #[error(transparent)]
+  Utf8Error(#[from] core::str::Utf8Error),
 }
 
 /// A unique string identifying a server for all time.
@@ -73,10 +40,9 @@ impl core::fmt::Display for NodeIdTransformError {
   feature = "rkyv",
   derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
 #[cfg_attr(
   feature = "rkyv",
-  archive_attr(derive(PartialEq, Eq, PartialOrd, Ord, Hash), repr(transparent))
+  rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash),)
 )]
 pub struct NodeId(SmolStr);
 

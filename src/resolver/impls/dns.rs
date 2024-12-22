@@ -15,7 +15,7 @@ use crate::{DnsName, Kind, NodeAddress};
 enum ResolveErrorKind {
   #[error("cannot resolve an ip address for {0}")]
   NotFound(DnsName),
-  #[error("{0}")]
+  #[error(transparent)]
   Resolve(#[from] hickory_resolver::error::ResolveError),
 }
 
@@ -25,12 +25,12 @@ enum ResolveErrorKind {
 pub struct ResolveError(ResolveErrorKind);
 
 impl core::fmt::Display for ResolveError {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
     self.0.fmt(f)
   }
 }
 
-impl std::error::Error for ResolveError {}
+impl core::error::Error for ResolveError {}
 
 impl From<ResolveErrorKind> for ResolveError {
   fn from(value: ResolveErrorKind) -> Self {
@@ -42,10 +42,10 @@ impl From<ResolveErrorKind> for ResolveError {
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   /// Returns when there is an io error
-  #[error("{0}")]
+  #[error(transparent)]
   IO(#[from] io::Error),
   /// Returns when there is an error when resolving an address
-  #[error("{0}")]
+  #[error(transparent)]
   Resolve(#[from] ResolveError),
 }
 
@@ -180,7 +180,7 @@ impl DnsResolverOptions {
 /// A resolver which supports both `domain:port` and socket address.
 ///
 /// - If you can make sure, you always play with [`SocketAddr`], you may want to
-/// use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
+///   use [`SocketAddrResolver`](crate::resolver::socket_addr::SocketAddrResolver).
 /// - If you do not want to send DNS queries, you may want to use [`AddressResolver`](crate::resolver::address::AddressResolver).
 ///
 /// **N.B.** If a domain contains multiple ip addresses, there is no guarantee that
@@ -230,7 +230,7 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
       Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
       Kind::Dns(name) => {
         // First, check cache
-        if let Some(ent) = self.cache.get(name) {
+        if let Some(ent) = self.cache.get(name.as_str()) {
           let val = ent.value();
           if !val.is_expired() {
             return Ok(val.val);
@@ -321,10 +321,20 @@ mod tests {
     let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
     let dns_name = DnsName::try_from("google.com").unwrap();
-    assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
+    assert!(!resolver
+      .cache
+      .get(dns_name.as_str())
+      .unwrap()
+      .value()
+      .is_expired());
 
     tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
+    assert!(resolver
+      .cache
+      .get(dns_name.as_str())
+      .unwrap()
+      .value()
+      .is_expired());
   }
 
   #[tokio::test]
@@ -344,10 +354,20 @@ mod tests {
     let ip_addr = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
     resolver.resolve(&ip_addr).await.unwrap();
     let dns_name = DnsName::try_from("google.com").unwrap();
-    assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
+    assert!(!resolver
+      .cache
+      .get(dns_name.as_str())
+      .unwrap()
+      .value()
+      .is_expired());
 
     tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
+    assert!(resolver
+      .cache
+      .get(dns_name.as_str())
+      .unwrap()
+      .value()
+      .is_expired());
     resolver.resolve(&google_addr).await.unwrap();
 
     let err = ResolveError::from(ResolveErrorKind::NotFound(dns_name.clone()));

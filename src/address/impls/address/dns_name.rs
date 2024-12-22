@@ -1,6 +1,6 @@
 use core::{fmt, hash::Hash};
 
-use smol_str::SmolStr;
+use smol_str03::SmolStr;
 
 /// A type which encapsulates a string (borrowed or owned) that is a syntactically valid DNS name.
 #[derive(Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -10,10 +10,9 @@ use smol_str::SmolStr;
   feature = "rkyv",
   derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-#[cfg_attr(feature = "rkyv", archive(check_bytes, compare(PartialEq)))]
 #[cfg_attr(
   feature = "rkyv",
-  archive_attr(derive(PartialEq, Eq, PartialOrd, Ord, Hash), repr(transparent))
+  rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
 pub(crate) struct DnsName(SmolStr);
 
@@ -115,7 +114,7 @@ impl<'a> TryFrom<&'a [u8]> for DnsName {
   fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
     validate(value)?;
     if value.len() < 23 {
-      if value.ends_with(&[b'.']) {
+      if value.ends_with(b".") {
         let mut buf = [0u8; 23];
         buf[..value.len()].copy_from_slice(value);
         buf[value.len()] = b'.';
@@ -127,7 +126,7 @@ impl<'a> TryFrom<&'a [u8]> for DnsName {
       } else {
         Ok(Self(core::str::from_utf8(value).unwrap().into()))
       }
-    } else if !value.ends_with(&[b'.']) {
+    } else if !value.ends_with(b".") {
       Ok(Self(
         format!("{}.", core::str::from_utf8(value).unwrap()).into(),
       ))
@@ -154,8 +153,7 @@ impl fmt::Display for InvalidDnsNameError {
   }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for InvalidDnsNameError {}
+impl core::error::Error for InvalidDnsNameError {}
 
 fn validate(input: &[u8]) -> Result<(), InvalidDnsNameError> {
   enum State {
