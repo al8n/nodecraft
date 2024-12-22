@@ -23,7 +23,7 @@ std = [
   "cheap-clone/std",
   "smol_str03?/std",
   "smol_str02?/std",
-  "thiserror",
+  "thiserror/std",
   "serde?/std",
   "humantime-serde",
   "futures?/std",
@@ -85,7 +85,7 @@ agnostic-lite = { version = "0.3", optional = true }
 agnostic = { version = "0.3", optional = true }
 byteorder = "1"
 futures = { version = "0.3", default-features = false, optional = true }
-thiserror = { version = "2", optional = true }
+thiserror = { version = "2", default-features = false }
 transformable = { version = "0.2", default-features = false, optional = true }
 serde = { version = "1", default-features = false, optional = true, features = [
   "derive",

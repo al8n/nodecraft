@@ -62,8 +62,8 @@ jobs:
         echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
         vcpkg install openssl:x64-windows-static-md
     - name: Install Rust
-      # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
-      run: rustup update nightly --no-self-update && rustup default nightly && rustup component add clippy
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+      run: rustup update stable --no-self-update && rustup default stable
     - name: Install cargo-hack
       run: cargo install cargo-hack
     - name: Apply clippy lints (unix)
@@ -82,15 +82,15 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install Rust
       # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
-      run: rustup update nightly --no-self-update && rustup default nightly
+      run: rustup update stable --no-self-update && rustup default stable
+    - name: Install cargo-hack
+      run: cargo install cargo-hack
     - name: Install OpenSSL (Windows)
       if: matrix.os == 'windows-latest'
       shell: powershell
       run: |
         echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
         vcpkg install openssl:x64-windows-static-md
-    - name: Install cargo-hack
-      run: cargo install cargo-hack
     - name: Cache ~/.cargo
       uses: actions/cache@v3
       with:
