@@ -81,7 +81,7 @@ cheap-clone = { version = "0.2", default-features = false, features = [
   "smol_str03",
 ] }
 
-agnostic-lite = { version = "0.3", optional = true }
+agnostic-lite = { version = "0.4", optional = true }
 # agnostic-lite = { version = "0.3", optional = true, path = "../agnostic/lite" }
 agnostic = { version = "0.5", optional = true }
 # agnostic = { version = "0.5", optional = true, path = "../agnostic/agnostic" }
