@@ -179,7 +179,7 @@ mod resolver {
 
     #[tokio::test]
     async fn test_dns_resolver() {
-      use agnostic::tokio::TokioRuntime;
+      use agnostic_dns::net::runtime::tokio::TokioRuntime;
 
       let resolver = NodeAddressResolver::<TokioRuntime>::default();
       let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
@@ -189,7 +189,7 @@ mod resolver {
 
     #[tokio::test]
     async fn test_dns_resolver_with_record_ttl() {
-      use agnostic::tokio::TokioRuntime;
+      use agnostic_dns::net::runtime::tokio::TokioRuntime;
 
       let resolver = NodeAddressResolver::<TokioRuntime>::new(
         NodeAddressResolverOptions::new().with_record_ttl(Duration::from_millis(100)),

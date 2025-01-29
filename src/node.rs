@@ -422,19 +422,19 @@ const _: () = {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use rand::distributions::Alphanumeric;
+  use rand::distr::Alphanumeric;
   use smol_str03::SmolStr;
 
   fn random(size: usize) -> Node<SmolStr, u64> {
-    use rand::{thread_rng, Rng};
-    let id = thread_rng()
+    use rand::{rng, Rng};
+    let id = rng()
       .sample_iter(Alphanumeric)
       .take(size)
       .collect::<Vec<u8>>();
 
     Node::new(
       SmolStr::from(String::from_utf8(id).unwrap()),
-      thread_rng().gen(),
+      rng().random(),
     )
   }
 

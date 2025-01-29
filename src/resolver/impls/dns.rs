@@ -1,11 +1,7 @@
 use core::time::Duration;
-use std::{
-  io,
-  net::{SocketAddr, ToSocketAddrs},
-};
+use std::{io, net::SocketAddr};
 
-pub use agnostic::net::dns::*;
-use agnostic::Runtime;
+pub use agnostic_dns::{net::Net, *};
 use crossbeam_skiplist::SkipMap;
 
 use super::{super::AddressResolver, CachedSocketAddr};
@@ -192,17 +188,17 @@ impl DnsResolverOptions {
 /// 2. `[::1]:8080` // ipv6
 /// 3. `127.0.0.1:8080` // ipv4
 ///
-pub struct DnsResolver<R: Runtime> {
-  dns: Option<Dns<R>>,
+pub struct DnsResolver<N: Net> {
+  dns: Option<Dns<N>>,
   record_ttl: Duration,
   cache: SkipMap<DnsName, CachedSocketAddr>,
 }
 
-impl<R: Runtime> AddressResolver for DnsResolver<R> {
+impl<N: Net> AddressResolver for DnsResolver<N> {
   type Address = NodeAddress;
   type Error = Error;
   type ResolvedAddress = SocketAddr;
-  type Runtime = R;
+  type Runtime = N::Runtime;
   type Options = DnsResolverOptions;
 
   async fn new(opts: Self::Options) -> Result<Self, Self::Error>
@@ -257,27 +253,13 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         }
 
         // Finally, try to find the socket addr locally
-        let (tx, rx) = futures::channel::oneshot::channel();
         let port = address.port;
         let tsafe = name.clone();
 
-        R::spawn_blocking_detach(move || {
-          if tx
-            .send(ToSocketAddrs::to_socket_addrs(&(tsafe.as_str(), port)))
-            .is_err()
-          {
-            #[cfg(feature = "tracing")]
-            tracing::warn!(
-              target = "nodecraft.resolver.dns",
-              "failed to resolve {} to socket address: receiver dropped",
-              tsafe,
-            );
-          }
-        });
+        let res =
+          agnostic_dns::net::ToSocketAddrs::<N::Runtime>::to_socket_addrs(&(tsafe.as_str(), port))
+            .await?;
 
-        let res = rx
-          .await
-          .map_err(|e| std::io::Error::new(std::io::ErrorKind::BrokenPipe, e))??;
         if let Some(addr) = res.into_iter().next() {
           self
             .cache
@@ -299,11 +281,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_dns_resolver() {
-    use agnostic::tokio::TokioRuntime;
+    use agnostic_dns::net::tokio::Net;
 
-    let resolver = DnsResolver::<TokioRuntime>::new(Default::default())
-      .await
-      .unwrap();
+    let resolver = DnsResolver::<Net>::new(Default::default()).await.unwrap();
     let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
     let ip = resolver.resolve(&google_addr).await.unwrap();
     println!("google.com:8080 resolved to: {}", ip);
@@ -311,9 +291,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_dns_resolver_with_record_ttl() {
-    use agnostic::tokio::TokioRuntime;
+    use agnostic_dns::net::tokio::Net;
 
-    let resolver = DnsResolver::<TokioRuntime>::new(
+    let resolver = DnsResolver::<Net>::new(
       DnsResolverOptions::default().with_record_ttl(Duration::from_millis(100)),
     )
     .await
@@ -339,9 +319,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_dns_resolver_without_dns() {
-    use agnostic::tokio::TokioRuntime;
+    use agnostic_dns::net::tokio::Net;
 
-    let resolver = DnsResolver::<TokioRuntime>::new(
+    let resolver = DnsResolver::<Net>::new(
       DnsResolverOptions::default()
         .with_dns(None)
         .with_record_ttl(Duration::from_millis(100)),
