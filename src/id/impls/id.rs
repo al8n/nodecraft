@@ -343,14 +343,14 @@ impl TryFrom<String> for NodeId {
 mod tests {
   use core::str::FromStr;
 
-  use rand::{distributions::Alphanumeric, thread_rng};
+  use rand::{distr::Alphanumeric, rng};
 
   use super::*;
 
   impl NodeId {
     fn random(size: usize) -> Self {
       use rand::Rng;
-      let id = thread_rng()
+      let id = rng()
         .sample_iter(Alphanumeric)
         .take(size)
         .collect::<Vec<u8>>();

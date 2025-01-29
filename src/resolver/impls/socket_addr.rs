@@ -8,7 +8,7 @@ pub use resolver::SocketAddrResolver;
 mod resolver {
   use super::*;
 
-  use agnostic_lite::RuntimeLite;
+  use agnostic::RuntimeLite;
 
   /// The [`AddressResolver::Address`] of the [`SocketAddrResolver`] is [`SocketAddr`].
   /// So it just returns the given address and impossible to return an error.
@@ -48,7 +48,7 @@ mod resolver {
 
     #[tokio::test]
     async fn resolve() {
-      let resolver = SocketAddrResolver::<agnostic_lite::tokio::TokioRuntime>::default();
+      let resolver = SocketAddrResolver::<agnostic::tokio::TokioRuntime>::default();
       let address = SocketAddr::new("127.0.0.1".parse().unwrap(), 8080);
       assert_eq!(resolver.resolve(&address).await.unwrap(), address);
     }

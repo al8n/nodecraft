@@ -1,11 +1,11 @@
 use core::time::Duration;
-use std::{
-  io,
-  net::{SocketAddr, ToSocketAddrs},
-};
+use std::{io, net::SocketAddr};
 
-pub use agnostic::net::dns::*;
 use agnostic::Runtime;
+pub use agnostic::{
+  dns::{AsyncConnectionProvider, Dns, ResolverConfig, ResolverOpts},
+  net::Net,
+};
 use crossbeam_skiplist::SkipMap;
 
 use super::{super::AddressResolver, CachedSocketAddr};
@@ -193,7 +193,7 @@ impl DnsResolverOptions {
 /// 3. `127.0.0.1:8080` // ipv4
 ///
 pub struct DnsResolver<R: Runtime> {
-  dns: Option<Dns<R>>,
+  dns: Option<Dns<R::Net>>,
   record_ttl: Duration,
   cache: SkipMap<DnsName, CachedSocketAddr>,
 }
@@ -257,27 +257,12 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         }
 
         // Finally, try to find the socket addr locally
-        let (tx, rx) = futures::channel::oneshot::channel();
         let port = address.port;
         let tsafe = name.clone();
 
-        R::spawn_blocking_detach(move || {
-          if tx
-            .send(ToSocketAddrs::to_socket_addrs(&(tsafe.as_str(), port)))
-            .is_err()
-          {
-            #[cfg(feature = "tracing")]
-            tracing::warn!(
-              target = "nodecraft.resolver.dns",
-              "failed to resolve {} to socket address: receiver dropped",
-              tsafe,
-            );
-          }
-        });
+        let res =
+          agnostic::net::ToSocketAddrs::<R>::to_socket_addrs(&(tsafe.as_str(), port)).await?;
 
-        let res = rx
-          .await
-          .map_err(|e| std::io::Error::new(std::io::ErrorKind::BrokenPipe, e))??;
         if let Some(addr) = res.into_iter().next() {
           self
             .cache

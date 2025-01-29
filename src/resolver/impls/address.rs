@@ -1,5 +1,5 @@
 use core::time::Duration;
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::SocketAddr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
 use crate::{address::DnsName, Kind, NodeAddress};
@@ -63,7 +63,7 @@ pub use resolver::NodeAddressResolver;
 mod resolver {
   use super::*;
 
-  use agnostic_lite::RuntimeLite;
+  use agnostic::RuntimeLite;
 
   /// A resolver which supports both `domain:port` and socket address. However,
   /// it will only use [`ToSocketAddrs`](std::net::ToSocketAddrs)
@@ -125,27 +125,13 @@ mod resolver {
           }
 
           // Finally, try to find the socket addr locally
-          let (tx, rx) = futures::channel::oneshot::channel();
           let port = address.port;
           let tsafe = name.clone();
 
-          R::spawn_blocking_detach(move || {
-            if tx
-              .send(ToSocketAddrs::to_socket_addrs(&(tsafe.as_str(), port)))
-              .is_err()
-            {
-              #[cfg(feature = "tracing")]
-              tracing::warn!(
-                target = "nodecraft.resolver.dns",
-                "failed to resolve {} to socket address: receiver dropped",
-                tsafe,
-              );
-            }
-          });
+          let res =
+            agnostic::net::ToSocketAddrs::<Self::Runtime>::to_socket_addrs(&(tsafe.as_str(), port))
+              .await?;
 
-          let res = rx
-            .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::BrokenPipe, e))??;
           if let Some(addr) = res.into_iter().next() {
             self
               .cache

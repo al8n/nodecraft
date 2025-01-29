@@ -648,15 +648,15 @@ fn encoded_len(this: &NodeAddress) -> usize {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use rand::{distributions::Alphanumeric, thread_rng, Rng, RngCore};
+  use rand::{distr::Alphanumeric, rng, Rng, RngCore};
 
   impl NodeAddress {
     fn random_v4_address() -> Self {
       // create a random ipv4 address
       let mut addr = [0u8; 4];
-      let mut rng = thread_rng();
+      let mut rng = rng();
       rng.fill_bytes(&mut addr);
-      let port = rng.gen_range(0..=u16::MAX);
+      let port = rng.random_range(0..=u16::MAX);
 
       Self {
         kind: Kind::Ip(IpAddr::V4(Ipv4Addr::from(addr))),
@@ -667,9 +667,9 @@ mod tests {
     fn random_v6_address() -> Self {
       // create a random ipv6 address
       let mut addr = [0u8; 16];
-      let mut rng = thread_rng();
+      let mut rng = rng();
       rng.fill_bytes(&mut addr);
-      let port = rng.gen_range(0..=u16::MAX);
+      let port = rng.random_range(0..=u16::MAX);
 
       Self {
         kind: Kind::Ip(IpAddr::V6(Ipv6Addr::from(addr))),
@@ -679,16 +679,16 @@ mod tests {
 
     fn random_domain_address(size: u8) -> Self {
       // create a random domain address
-      let mut rng = thread_rng();
+      let mut trng = rng();
 
-      let domain = thread_rng()
+      let domain = rng()
         .sample_iter(Alphanumeric)
         .filter(|c| c.is_ascii_alphabetic())
         .take(size as usize)
         .collect::<Vec<u8>>();
       let domain = String::from_utf8(domain).unwrap();
       let domain = format!("{}.com", domain);
-      let port = rng.gen_range(0..=u16::MAX);
+      let port = trng.random_range(0..=u16::MAX);
 
       Self {
         kind: Kind::Dns(DnsName::try_from(domain).unwrap()),

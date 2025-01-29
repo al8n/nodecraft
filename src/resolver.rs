@@ -7,7 +7,7 @@ use cheap_clone::CheapClone;
 pub use impls::*;
 
 #[cfg(feature = "agnostic")]
-pub use agnostic_lite::*;
+pub use agnostic::{Runtime, RuntimeLite};
 
 #[cfg(not(feature = "agnostic"))]
 /// Used to resolve a [`SocketAddr`] from a node address in async style.
@@ -74,7 +74,7 @@ pub trait AddressResolver: Send + Sync + 'static {
   type Error: core::error::Error + Send + Sync + 'static;
 
   /// The runtime used to resolve the address.
-  type Runtime: agnostic_lite::RuntimeLite;
+  type Runtime: agnostic::RuntimeLite;
 
   /// The options type used to configure the resolver.
   type Options: Send + Sync + 'static;
