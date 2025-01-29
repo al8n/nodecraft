@@ -42,6 +42,7 @@ dns = [
   "dep:hickory-resolver",
   "crossbeam-skiplist/default",
   "async",
+  "agnostic",
   "agnostic-dns",
 ]
 dns-over-quic = ["dns", "agnostic-dns/dns-over-quic"]
