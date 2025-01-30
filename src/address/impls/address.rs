@@ -981,4 +981,10 @@ mod tests {
     assert_eq!(v6, v6_dec);
     assert_eq!(domain, domain_dec);
   }
+
+  #[test]
+  fn test_constructor() {
+    let a = NodeAddress::from_domain_static("www.example.com", 80).unwrap();
+    assert_eq!(a.domain().unwrap(), "www.example.com");
+  }
 }
