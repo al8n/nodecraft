@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.5.1"
+version = "0.6.0"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -81,7 +81,7 @@ cheap-clone = { version = "0.2", default-features = false, features = [
   "smol_str03",
 ] }
 
-agnostic = { version = "0.6", default-features = false, optional = true }
+agnostic = { version = "0.7", default-features = false, optional = true }
 byteorder = "1"
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "2", default-features = false }
@@ -106,7 +106,7 @@ tokio = { version = "1", features = ["full"] }
 rand = "0.9"
 serde_json = "1"
 bincode = "1"
-agnostic = { version = "0.6", features = ["tokio"] }
+agnostic = { version = "0.7", features = ["tokio"] }
 
 [package.metadata.docs.rs]
 all-features = true

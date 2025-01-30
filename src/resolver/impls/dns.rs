@@ -1,20 +1,20 @@
 use core::time::Duration;
 use std::{io, net::SocketAddr};
 
-use agnostic::Runtime;
 pub use agnostic::{
   dns::{AsyncConnectionProvider, Dns, ResolverConfig, ResolverOpts},
   net::Net,
 };
+use agnostic::{net::ToSocketAddrs, Runtime};
 use crossbeam_skiplist::SkipMap;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{DnsName, Kind, NodeAddress};
+use crate::{Domain, Kind, NodeAddress};
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
   #[error("cannot resolve an ip address for {0}")]
-  NotFound(DnsName),
+  NotFound(Domain),
   #[error(transparent)]
   Resolve(#[from] hickory_resolver::error::ResolveError),
 }
@@ -191,11 +191,10 @@ impl DnsResolverOptions {
 /// 1. `www.example.com:8080` // domain
 /// 2. `[::1]:8080` // ipv6
 /// 3. `127.0.0.1:8080` // ipv4
-///
 pub struct DnsResolver<R: Runtime> {
   dns: Option<Dns<R::Net>>,
   record_ttl: Duration,
-  cache: SkipMap<DnsName, CachedSocketAddr>,
+  cache: SkipMap<Domain, CachedSocketAddr>,
 }
 
 impl<R: Runtime> AddressResolver for DnsResolver<R> {
@@ -228,7 +227,7 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
   async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
     match &address.kind {
       Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
-      Kind::Dns(name) => {
+      Kind::Domain(name) => {
         // First, check cache
         if let Some(ent) = self.cache.get(name.as_str()) {
           let val = ent.value();
@@ -242,7 +241,7 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         // Second, TCP lookup ip address
         if let Some(ref dns) = self.dns {
           if let Some(ip) = dns
-            .lookup_ip(name.terminate_str())
+            .lookup_ip(name.fqdn_str())
             .await
             .map_err(|e| ResolveError::from(ResolveErrorKind::from(e)))?
             .into_iter()
@@ -260,8 +259,7 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         let port = address.port;
         let tsafe = name.clone();
 
-        let res =
-          agnostic::net::ToSocketAddrs::<R>::to_socket_addrs(&(tsafe.as_str(), port)).await?;
+        let res = ToSocketAddrs::<R>::to_socket_addrs(&(tsafe.as_str(), port)).await?;
 
         if let Some(addr) = res.into_iter().next() {
           self
@@ -305,7 +303,7 @@ mod tests {
     .unwrap();
     let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
-    let dns_name = DnsName::try_from("google.com").unwrap();
+    let dns_name = Domain::try_from("google.com").unwrap();
     assert!(!resolver
       .cache
       .get(dns_name.as_str())
@@ -338,7 +336,7 @@ mod tests {
     resolver.resolve(&google_addr).await.unwrap();
     let ip_addr = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
     resolver.resolve(&ip_addr).await.unwrap();
-    let dns_name = DnsName::try_from("google.com").unwrap();
+    let dns_name = Domain::try_from("google.com").unwrap();
     assert!(!resolver
       .cache
       .get(dns_name.as_str())

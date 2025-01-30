@@ -3,7 +3,7 @@ use core::fmt::{Debug, Display};
 mod impls;
 use cheap_clone::CheapClone;
 #[cfg(feature = "resolver")]
-pub(crate) use impls::DnsName;
+pub(crate) use impls::Domain;
 #[cfg(feature = "resolver")]
 pub(crate) use impls::Kind;
 #[cfg(feature = "std")]
