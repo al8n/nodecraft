@@ -3,9 +3,7 @@ use core::{fmt, hash::Hash};
 use smol_str03::SmolStr;
 
 /// A type which encapsulates a string (borrowed or owned) that is a syntactically valid DNS name.
-#[derive(Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(transparent))]
+#[derive(Clone, Debug, Eq)]
 #[cfg_attr(
   feature = "rkyv",
   derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
@@ -14,148 +12,190 @@ use smol_str03::SmolStr;
   feature = "rkyv",
   rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
-pub(crate) struct DnsName(SmolStr);
+pub(crate) struct Domain(SmolStr);
 
-impl core::fmt::Display for DnsName {
+#[cfg(feature = "serde")]
+const _: () = {
+  impl serde::Serialize for Domain {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: serde::Serializer,
+    {
+      self.as_str().serialize(serializer)
+    }
+  }
+
+  impl<'de> serde::Deserialize<'de> for Domain {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+      D: serde::Deserializer<'de>,
+    {
+      let s = <&str>::deserialize(deserializer)?;
+      s.try_into().map_err(serde::de::Error::custom)
+    }
+  }
+};
+
+impl core::fmt::Display for Domain {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     self.as_str().fmt(f)
   }
 }
 
-impl core::borrow::Borrow<str> for DnsName {
+impl core::borrow::Borrow<str> for Domain {
   fn borrow(&self) -> &str {
     self.as_str()
   }
 }
 
-impl core::borrow::Borrow<SmolStr> for DnsName {
-  fn borrow(&self) -> &SmolStr {
-    &self.0
+impl PartialEq for Domain {
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    self.as_str() == other.as_str()
   }
 }
 
-impl DnsName {
+impl PartialOrd for Domain {
+  #[inline]
+  fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl Ord for Domain {
+  #[inline]
+  fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+    self.as_str().cmp(other.as_str())
+  }
+}
+
+impl core::hash::Hash for Domain {
+  fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+    self.as_str().hash(state)
+  }
+}
+
+impl Domain {
+  /// Add const constructor for static DNS names
+  pub const fn new_static(s: &'static str) -> Result<Self, InvalidDomainError> {
+    // Validate at compile time
+    match validate(s.as_bytes()) {
+      Ok(()) => Ok(Self(SmolStr::new_static(s))),
+      Err(e) => Err(e),
+    }
+  }
+
   /// Returns the str representation.
   #[inline]
   pub fn as_str(&self) -> &str {
     self.0.trim_end_matches('.')
   }
 
-  pub fn terminate_str(&self) -> &str {
+  /// Returns the fully-qualified domain name representation.
+  #[inline]
+  pub fn fqdn_str(&self) -> &str {
     self.0.as_str()
   }
-}
 
-#[cfg(feature = "alloc")]
-impl TryFrom<String> for DnsName {
-  type Error = InvalidDnsNameError;
+  fn try_from_inner(value: &[u8], validated: bool) -> Result<Self, InvalidDomainError> {
+    if !validated {
+      validate(value)?;
+    }
 
-  fn try_from(value: String) -> Result<Self, Self::Error> {
-    validate(value.as_bytes())?;
-    if value.len() < 23 {
-      if value.ends_with('.') {
-        let mut buf = [0u8; 23];
-        buf[..value.len()].copy_from_slice(value.as_bytes());
-        buf[value.len()] = b'.';
-        Ok(Self(
-          core::str::from_utf8(&buf[..value.len() + 1])
-            .unwrap()
-            .into(),
-        ))
-      } else {
-        Ok(Self(value.into()))
-      }
-    } else if !value.ends_with('.') {
-      Ok(Self(format!("{}.", value).into()))
+    // Early return if already has trailing dot
+    if value.ends_with(b".") {
+      return Ok(Self(
+        // SAFETY: We know the input is valid UTF-8 from validation
+        unsafe { core::str::from_utf8_unchecked(value) }.into(),
+      ));
+    }
+
+    let len = value.len();
+    if len + 1 < 23 {
+      // Use stack allocation for small strings
+      let mut buf = [0u8; 23];
+      buf[..len].copy_from_slice(value);
+      buf[len] = b'.'; // Add trailing dot
+      Ok(Self(
+        // SAFETY: We know the input is valid UTF-8 from validation
+        unsafe { core::str::from_utf8_unchecked(&buf[..=len]) }.into(),
+      ))
     } else {
-      Ok(Self(value.into()))
+      // Consider pre-allocating with capacity
+      let mut string = String::with_capacity(value.len() + 1);
+      // SAFETY: We know the input is valid UTF-8 from validation
+      string.push_str(unsafe { core::str::from_utf8_unchecked(value) });
+      string.push('.');
+      Ok(Self(string.into()))
     }
   }
 }
 
 #[cfg(feature = "alloc")]
-impl TryFrom<&String> for DnsName {
-  type Error = InvalidDnsNameError;
+impl TryFrom<String> for Domain {
+  type Error = InvalidDomainError;
+
+  fn try_from(value: String) -> Result<Self, Self::Error> {
+    // String is guaranteed to be valid UTF-8, but we need to validate DNS rules
+    Self::try_from_inner(value.as_bytes(), false)
+  }
+}
+
+#[cfg(feature = "alloc")]
+impl TryFrom<&String> for Domain {
+  type Error = InvalidDomainError;
 
   fn try_from(value: &String) -> Result<Self, Self::Error> {
     value.as_str().try_into()
   }
 }
 
-impl<'a> TryFrom<&'a str> for DnsName {
-  type Error = InvalidDnsNameError;
+impl<'a> TryFrom<&'a str> for Domain {
+  type Error = InvalidDomainError;
 
   fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-    validate(value.as_bytes())?;
-    if value.len() < 23 {
-      if value.ends_with('.') {
-        let mut buf = [0u8; 23];
-        buf[..value.len()].copy_from_slice(value.as_bytes());
-        buf[value.len()] = b'.';
-        Ok(Self(
-          core::str::from_utf8(&buf[..value.len() + 1])
-            .unwrap()
-            .into(),
-        ))
-      } else {
-        Ok(Self(value.into()))
-      }
-    } else if !value.ends_with('.') {
-      Ok(Self(format!("{}.", value).into()))
-    } else {
-      Ok(Self(value.into()))
-    }
+    // str is guaranteed to be valid UTF-8, but we need to validate DNS rules
+    Self::try_from_inner(value.as_bytes(), false)
   }
 }
 
-impl<'a> TryFrom<&'a [u8]> for DnsName {
-  type Error = InvalidDnsNameError;
+impl core::str::FromStr for Domain {
+  type Err = InvalidDomainError;
+
+  fn from_str(value: &str) -> Result<Self, Self::Err> {
+    value.try_into()
+  }
+}
+
+impl<'a> TryFrom<&'a [u8]> for Domain {
+  type Error = InvalidDomainError;
 
   fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-    validate(value)?;
-    if value.len() < 23 {
-      if value.ends_with(b".") {
-        let mut buf = [0u8; 23];
-        buf[..value.len()].copy_from_slice(value);
-        buf[value.len()] = b'.';
-        Ok(Self(
-          core::str::from_utf8(&buf[..value.len() + 1])
-            .unwrap()
-            .into(),
-        ))
-      } else {
-        Ok(Self(core::str::from_utf8(value).unwrap().into()))
-      }
-    } else if !value.ends_with(b".") {
-      Ok(Self(
-        format!("{}.", core::str::from_utf8(value).unwrap()).into(),
-      ))
-    } else {
-      Ok(Self(core::str::from_utf8(value).unwrap().into()))
-    }
+    // bytes is guaranteed to be valid UTF-8, but we need to validate DNS rules
+    Self::try_from_inner(value, true)
   }
 }
 
-impl AsRef<str> for DnsName {
+impl AsRef<str> for Domain {
   fn as_ref(&self) -> &str {
     self.as_str()
   }
 }
 
 /// The provided input could not be parsed because
-/// it is not a syntactically-valid DNS Name.
+/// it is not a syntactically-valid DNS Domain.
 #[derive(Debug)]
-pub struct InvalidDnsNameError;
+pub struct InvalidDomainError;
 
-impl fmt::Display for InvalidDnsNameError {
+impl fmt::Display for InvalidDomainError {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     f.write_str("invalid dns name")
   }
 }
 
-impl core::error::Error for InvalidDnsNameError {}
+impl core::error::Error for InvalidDomainError {}
 
-fn validate(input: &[u8]) -> Result<(), InvalidDnsNameError> {
+const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
   enum State {
     Start,
     Next,
@@ -166,6 +206,7 @@ fn validate(input: &[u8]) -> Result<(), InvalidDnsNameError> {
   }
 
   use State::*;
+
   let mut state = Start;
 
   /// "Labels must be 63 characters or less."
@@ -174,19 +215,22 @@ fn validate(input: &[u8]) -> Result<(), InvalidDnsNameError> {
   /// https://devblogs.microsoft.com/oldnewthing/20120412-00/?p=7873
   const MAX_NAME_LENGTH: usize = 253;
 
+  let len = input.len();
   if input.len() > MAX_NAME_LENGTH {
-    return Err(InvalidDnsNameError);
+    return Err(InvalidDomainError);
   }
 
-  for ch in input {
+  let mut i = 0;
+  while i < len {
+    let ch = input[i];
     state = match (state, ch) {
       (Start | Next | NextAfterNumericOnly | Hyphen { .. }, b'.') => {
-        return Err(InvalidDnsNameError)
+        return Err(InvalidDomainError)
       }
       (Subsequent { .. }, b'.') => Next,
       (NumericOnly { .. }, b'.') => NextAfterNumericOnly,
       (Subsequent { len } | NumericOnly { len } | Hyphen { len }, _) if len >= MAX_LABEL_LENGTH => {
-        return Err(InvalidDnsNameError)
+        return Err(InvalidDomainError)
       }
       (Start | Next | NextAfterNumericOnly, b'0'..=b'9') => NumericOnly { len: 1 },
       (NumericOnly { len }, b'0'..=b'9') => NumericOnly { len: len + 1 },
@@ -198,15 +242,16 @@ fn validate(input: &[u8]) -> Result<(), InvalidDnsNameError> {
         Subsequent { len } | NumericOnly { len } | Hyphen { len },
         b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'0'..=b'9',
       ) => Subsequent { len: len + 1 },
-      _ => return Err(InvalidDnsNameError),
+      _ => return Err(InvalidDomainError),
     };
+    i += 1;
   }
 
   if matches!(
     state,
     Start | Hyphen { .. } | NumericOnly { .. } | NextAfterNumericOnly
   ) {
-    return Err(InvalidDnsNameError);
+    return Err(InvalidDomainError);
   }
 
   Ok(())
@@ -281,9 +326,9 @@ mod tests {
     for (input, expected) in TESTS {
       #[cfg(feature = "std")]
       println!("test: {:?} expected valid? {:?}", input, expected);
-      let name_ref = DnsName::try_from(*input);
+      let name_ref = Domain::try_from(*input);
       assert_eq!(*expected, name_ref.is_ok());
-      let name = DnsName::try_from(input.to_string());
+      let name = Domain::try_from(input.to_string());
       assert_eq!(*expected, name.is_ok());
     }
   }
@@ -291,9 +336,9 @@ mod tests {
   #[cfg(feature = "alloc")]
   #[test]
   fn test_basic() {
-    let name = DnsName::try_from(&"localhost".to_string()).unwrap();
+    let name = Domain::try_from(&"localhost".to_string()).unwrap();
     assert_eq!("localhost", name.as_ref());
-    let err = InvalidDnsNameError;
+    let err = InvalidDomainError;
     println!("{}", err);
   }
 
@@ -301,28 +346,28 @@ mod tests {
   #[test]
   fn test_borrow() {
     use std::collections::HashSet;
-    let name = DnsName::try_from("localhost").unwrap();
+    let name = Domain::try_from("localhost").unwrap();
     let mut set = HashSet::new();
     set.insert(name);
 
     assert!(set.contains("localhost"));
-    assert!(set.contains(&SmolStr::from("localhost")));
   }
 
   #[test]
   fn test_try_from_bytes() {
-    use super::DnsName;
+    use super::Domain;
 
-    let name = DnsName::try_from(b"localhost".as_slice()).unwrap();
+    let name = Domain::try_from(b"localhost".as_slice()).unwrap();
+    assert_eq!("localhost", name.as_str());
+    assert_eq!("localhost.", name.fqdn_str());
+
+    let name = Domain::try_from(b"localhost.".as_slice()).unwrap();
     assert_eq!("localhost", name.as_str());
 
-    let name = DnsName::try_from(b"localhost.".as_slice()).unwrap();
-    assert_eq!("localhost", name.as_str());
-
-    let name = DnsName::try_from(b"labelendswithnumber1.bar.com".as_slice()).unwrap();
+    let name = Domain::try_from(b"labelendswithnumber1.bar.com".as_slice()).unwrap();
     assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
 
-    let name = DnsName::try_from(b"labelendswithnumber1.bar.com.".as_slice()).unwrap();
+    let name = Domain::try_from(b"labelendswithnumber1.bar.com.".as_slice()).unwrap();
     assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
   }
 }

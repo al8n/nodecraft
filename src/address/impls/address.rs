@@ -9,8 +9,8 @@ use std::{
   str::FromStr,
 };
 
-mod dns_name;
-pub(crate) use dns_name::{DnsName, InvalidDnsNameError};
+mod domain;
+pub(crate) use domain::{Domain, InvalidDomainError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -24,7 +24,7 @@ pub(crate) use dns_name::{DnsName, InvalidDnsNameError};
 )]
 pub(crate) enum Kind {
   Ip(IpAddr),
-  Dns(DnsName),
+  Domain(Domain),
 }
 
 impl PartialOrd for Kind {
@@ -37,9 +37,9 @@ impl Ord for Kind {
   fn cmp(&self, other: &Self) -> core::cmp::Ordering {
     match (self, other) {
       (Self::Ip(a), Self::Ip(b)) => a.cmp(b),
-      (Self::Dns(a), Self::Dns(b)) => a.cmp(b),
-      (Self::Ip(_), Self::Dns(_)) => core::cmp::Ordering::Less,
-      (Self::Dns(_), Self::Ip(_)) => core::cmp::Ordering::Greater,
+      (Self::Domain(a), Self::Domain(b)) => a.cmp(b),
+      (Self::Ip(_), Self::Domain(_)) => core::cmp::Ordering::Less,
+      (Self::Domain(_), Self::Ip(_)) => core::cmp::Ordering::Greater,
     }
   }
 }
@@ -52,7 +52,7 @@ pub enum ParseNodeAddressError {
   MissingPort,
   /// Returned if the provided str is not a valid address.
   #[error("invalid DNS name {0}")]
-  InvalidDnsName(InvalidDnsNameError),
+  InvalidDomain(InvalidDomainError),
   /// Returned if the provided str is not a valid port.
   #[error("invalid port: {0}")]
   InvalidPort(#[from] core::num::ParseIntError),
@@ -86,7 +86,7 @@ pub enum NodeAddressError {
 /// 1. `www.example.com:8080`
 /// 2. `[::1]:8080`
 /// 3. `127.0.0.1:8080`
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(
   feature = "rkyv",
   derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
@@ -121,16 +121,7 @@ impl core::fmt::Display for NodeAddress {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match &self.kind {
       Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
-      Kind::Dns(name) => write!(f, "{}:{}", name.as_str(), self.port),
-    }
-  }
-}
-
-impl core::fmt::Debug for NodeAddress {
-  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    match &self.kind {
-      Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
-      Kind::Dns(name) => write!(f, "{}:{}", name.as_str(), self.port),
+      Kind::Domain(name) => write!(f, "{}:{}", name.as_str(), self.port),
     }
   }
 }
@@ -145,7 +136,7 @@ impl serde::Serialize for NodeAddress {
       Kind::Ip(ip) => SocketAddr::new(*ip, self.port)
         .to_string()
         .serialize(serializer),
-      Kind::Dns(name) => {
+      Kind::Domain(name) => {
         let s = format!("{}:{}", name.as_str(), self.port);
         s.serialize(serializer)
       }
@@ -215,13 +206,13 @@ impl FromStr for NodeAddress {
             };
 
             let port = port.parse().map_err(ParseNodeAddressError::InvalidPort)?;
-            let dns = DnsName::try_from(domain).map_err(ParseNodeAddressError::InvalidDnsName)?;
+            let dns = Domain::try_from(domain).map_err(ParseNodeAddressError::InvalidDomain)?;
 
             Ok(Self {
-              kind: Kind::Dns(dns),
+              kind: Kind::Domain(dns),
               port,
             })
-            .map_err(ParseNodeAddressError::InvalidDnsName)
+            .map_err(ParseNodeAddressError::InvalidDomain)
           }
         }
       }
@@ -239,22 +230,33 @@ impl TryFrom<(&str, u16)> for NodeAddress {
         kind: Kind::Ip(addr),
         port,
       }),
-      Err(_) => DnsName::try_from(domain)
+      Err(_) => Domain::try_from(domain)
         .map(|dns| Self {
-          kind: Kind::Dns(dns),
+          kind: Kind::Domain(dns),
           port,
         })
-        .map_err(ParseNodeAddressError::InvalidDnsName),
+        .map_err(ParseNodeAddressError::InvalidDomain),
     }
   }
 }
 
 impl NodeAddress {
+  /// Create a new address from domain and port
+  pub fn from_domain_static(s: &'static str, port: u16) -> Result<Self, ParseNodeAddressError> {
+    match Domain::new_static(s) {
+      Ok(d) => Ok(Self {
+        kind: Kind::Domain(d),
+        port,
+      }),
+      Err(e) => Err(ParseNodeAddressError::InvalidDomain(e)),
+    }
+  }
+
   /// Returns the domain of the address if this address can only be represented by domain name
   pub fn domain(&self) -> Option<&str> {
     match &self.kind {
       Kind::Ip(_) => None,
-      Kind::Dns(name) => Some(name.as_str()),
+      Kind::Domain(name) => Some(name.as_str()),
     }
   }
 
@@ -262,7 +264,7 @@ impl NodeAddress {
   pub const fn ip(&self) -> Option<IpAddr> {
     match &self.kind {
       Kind::Ip(addr) => Some(*addr),
-      Kind::Dns(_) => None,
+      Kind::Domain(_) => None,
     }
   }
 
@@ -326,11 +328,11 @@ impl Transformable for NodeAddress {
           dst[17..19].copy_from_slice(&self.port.to_be_bytes());
         }
       },
-      Kind::Dns(name) => {
+      Kind::Domain(name) => {
         let mut cur = 0;
         dst[cur] = 0;
         cur += TAG_SIZE;
-        let safe = name.terminate_str();
+        let safe = name.fqdn_str();
         dst[cur] = safe.len() as u8;
         cur += DOMAIN_LEN_SIZE;
         dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
@@ -362,8 +364,8 @@ impl Transformable for NodeAddress {
           writer.write_all(&dst)
         }
       },
-      Kind::Dns(name) => {
-        let safe = name.terminate_str();
+      Kind::Domain(name) => {
+        let safe = name.fqdn_str();
         let copy = |dst: &mut [u8]| {
           let mut cur = 0;
           dst[cur] = 0;
@@ -414,13 +416,13 @@ impl Transformable for NodeAddress {
           writer.write_all(&dst).await
         }
       },
-      Kind::Dns(name) => {
+      Kind::Domain(name) => {
         let encoded_len = self.encoded_len();
         let copy = |dst: &mut [u8]| {
           let mut cur = 0;
           dst[cur] = 0;
           cur += TAG_SIZE;
-          let safe = name.terminate_str();
+          let safe = name.fqdn_str();
           dst[cur] = safe.len() as u8;
           cur += DOMAIN_LEN_SIZE;
           dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
@@ -641,7 +643,7 @@ fn encoded_len(this: &NodeAddress) -> usize {
       IpAddr::V4(_) => TAG_SIZE + V4_SIZE + PORT_SIZE,
       IpAddr::V6(_) => TAG_SIZE + V6_SIZE + PORT_SIZE,
     },
-    Kind::Dns(name) => TAG_SIZE + DOMAIN_LEN_SIZE + name.terminate_str().len() + PORT_SIZE,
+    Kind::Domain(name) => TAG_SIZE + DOMAIN_LEN_SIZE + name.fqdn_str().len() + PORT_SIZE,
   }
 }
 
@@ -691,7 +693,7 @@ mod tests {
       let port = trng.random_range(0..=u16::MAX);
 
       Self {
-        kind: Kind::Dns(DnsName::try_from(domain).unwrap()),
+        kind: Kind::Domain(Domain::try_from(domain).unwrap()),
         port,
       }
     }
@@ -978,5 +980,11 @@ mod tests {
     assert_eq!(v4, v4_dec);
     assert_eq!(v6, v6_dec);
     assert_eq!(domain, domain_dec);
+  }
+
+  #[test]
+  fn test_constructor() {
+    let a = NodeAddress::from_domain_static("www.example.com", 80).unwrap();
+    assert_eq!(a.domain().unwrap(), "www.example.com");
   }
 }

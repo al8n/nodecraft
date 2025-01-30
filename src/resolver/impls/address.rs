@@ -2,7 +2,7 @@ use core::time::Duration;
 use std::net::SocketAddr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{address::DnsName, Kind, NodeAddress};
+use crate::{address::Domain, Kind, NodeAddress};
 
 use crossbeam_skiplist::SkipMap;
 
@@ -63,7 +63,7 @@ pub use resolver::NodeAddressResolver;
 mod resolver {
   use super::*;
 
-  use agnostic::RuntimeLite;
+  use agnostic::{net::ToSocketAddrs, RuntimeLite};
 
   /// A resolver which supports both `domain:port` and socket address. However,
   /// it will only use [`ToSocketAddrs`](std::net::ToSocketAddrs)
@@ -83,7 +83,7 @@ mod resolver {
   /// 3. `127.0.0.1:8080` // ipv4
   ///
   pub struct NodeAddressResolver<R> {
-    cache: SkipMap<DnsName, CachedSocketAddr>,
+    cache: SkipMap<Domain, CachedSocketAddr>,
     record_ttl: Duration,
     _marker: std::marker::PhantomData<R>,
   }
@@ -113,7 +113,7 @@ mod resolver {
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
       match &address.kind {
         Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
-        Kind::Dns(name) => {
+        Kind::Domain(name) => {
           // First, check cache
           if let Some(ent) = self.cache.get(name.as_str()) {
             let val = ent.value();
@@ -129,8 +129,7 @@ mod resolver {
           let tsafe = name.clone();
 
           let res =
-            agnostic::net::ToSocketAddrs::<Self::Runtime>::to_socket_addrs(&(tsafe.as_str(), port))
-              .await?;
+            ToSocketAddrs::<Self::Runtime>::to_socket_addrs(&(tsafe.as_str(), port)).await?;
 
           if let Some(addr) = res.into_iter().next() {
             self
@@ -185,7 +184,7 @@ mod resolver {
       resolver.resolve(&google_addr).await.unwrap();
       let ip_addr = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
       resolver.resolve(&ip_addr).await.unwrap();
-      let dns_name = DnsName::try_from("google.com").unwrap();
+      let dns_name = Domain::try_from("google.com").unwrap();
       assert!(!resolver
         .cache
         .get(dns_name.as_str())
@@ -230,7 +229,7 @@ mod resolver {
   /// 3. `127.0.0.1:8080` // ipv4
   ///
   pub struct NodeAddressResolver {
-    cache: SkipMap<DnsName, CachedSocketAddr>,
+    cache: SkipMap<Domain, CachedSocketAddr>,
     record_ttl: Duration,
   }
 
@@ -315,7 +314,7 @@ mod resolver {
       );
       let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
       resolver.resolve(&google_addr).await.unwrap();
-      let dns_name = DnsName::try_from("google.com").unwrap();
+      let dns_name = Domain::try_from("google.com").unwrap();
       assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
 
       tokio::time::sleep(Duration::from_millis(100)).await;
