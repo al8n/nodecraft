@@ -2,10 +2,8 @@ use core::borrow::Borrow;
 
 use smol_str03::SmolStr;
 
-// use crate::Id;
-
-#[cfg(not(all(feature = "std", feature = "alloc")))]
-use ::alloc::{string::String, vec::Vec};
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use std::{string::String, vec::Vec};
 
 /// Errors that can occur when transforming an [`NodeId`].
 #[derive(Debug, thiserror::Error)]
