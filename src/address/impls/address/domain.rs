@@ -398,4 +398,15 @@ mod tests {
     let name = Domain::try_from("labelendswithnumber1.bar.com.").unwrap();
     assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
   }
+
+  #[test]
+  fn test_non_ascii() {
+    let name = Domain::try_from("测试.com.").unwrap();
+    assert_eq!("xn--0zwm56d.com", name.as_str());
+    assert_eq!("xn--0zwm56d.com.", name.fqdn_str());
+
+    let name = Domain::try_from("测试.中国").unwrap();
+    assert_eq!("xn--0zwm56d.xn--fiqs8s", name.as_str());
+    assert_eq!("xn--0zwm56d.xn--fiqs8s.", name.fqdn_str());
+  }
 }

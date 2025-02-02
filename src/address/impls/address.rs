@@ -419,4 +419,13 @@ mod tests {
     assert_eq!(a.port(), 80);
     assert_eq!(a.fqdn().unwrap(), "www.example.com.");
   }
+
+  #[test]
+  fn negative_test() {
+    let p = HostAddr::try_from("127.0.0.1");
+    assert!(matches!(p, Err(ParseHostAddrError::PortNotFound)));
+
+    let p = HostAddr::try_from("www.example.com");
+    assert!(matches!(p, Err(ParseHostAddrError::PortNotFound)));
+  }
 }

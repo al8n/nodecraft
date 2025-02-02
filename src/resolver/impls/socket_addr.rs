@@ -94,8 +94,11 @@ mod tests {
   use super::*;
 
   #[cfg(feature = "agnostic")]
-  #[test]
-  fn resolver() {
+  #[tokio::test]
+  async fn resolver() {
     let _ = SocketAddrResolver::<agnostic::tokio::TokioRuntime>::default();
+    let _ = SocketAddrResolver::<agnostic::tokio::TokioRuntime>::new(())
+      .await
+      .unwrap();
   }
 }
