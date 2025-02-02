@@ -71,7 +71,7 @@ rkyv = ["dep:rkyv"]
 tracing = ["dep:tracing"]
 
 [dependencies]
-idna = { version = "1", optional = true, default-features = false }
+idna = { version = "1", optional = true, default-features = false, features = ["compiled_data"]}
 cheap-clone = { version = "0.2", default-features = false, features = [
   "smol_str03",
 ] }
