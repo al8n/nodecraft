@@ -7,7 +7,7 @@ pub(crate) use impls::Domain;
 #[cfg(feature = "resolver")]
 pub(crate) use impls::Kind;
 #[cfg(feature = "std")]
-pub use impls::{NodeAddress, NodeAddressError, ParseNodeAddressError};
+pub use impls::{NodeAddress, ParseNodeAddressError};
 
 /// Address abstraction for distributed systems
 pub trait Address:

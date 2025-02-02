@@ -4,7 +4,7 @@ use std::{
 };
 
 mod domain;
-pub(crate) use domain::{Domain, InvalidDomainError};
+pub(crate) use domain::{Domain, PraseDomainError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -43,35 +43,13 @@ impl Ord for Kind {
 pub enum ParseNodeAddressError {
   /// Returned if the provided str is missing port.
   #[error("address is missing port")]
-  MissingPort,
+  PortNotFound,
   /// Returned if the provided str is not a valid address.
-  #[error("invalid DNS name {0}")]
-  InvalidDomain(InvalidDomainError),
+  #[error(transparent)]
+  Domain(#[from] PraseDomainError),
   /// Returned if the provided str is not a valid port.
   #[error("invalid port: {0}")]
-  InvalidPort(#[from] core::num::ParseIntError),
-}
-
-/// An error which can be returned when encoding/decoding a [`NodeAddress`].
-#[derive(Debug, thiserror::Error)]
-pub enum NodeAddressError {
-  /// Returned if the provided buffer is too small.
-  #[error(
-    "buffer is too small, use `Address::encoded_len` to pre-allocate a buffer with enough space"
-  )]
-  EncodeBufferTooSmall,
-  /// Returned if fail to parsing the domain address.
-  #[error(transparent)]
-  ParseNodeAddressError(#[from] ParseNodeAddressError),
-  /// Returned if the provided bytes is corrupted.
-  #[error("{0}")]
-  Corrupted(&'static str),
-  /// Returned if the provided bytes contains an unknown address tag.
-  #[error("unknown address tag: {0}")]
-  UnknownAddressTag(u8),
-  /// Returned if the provided bytes is not a valid utf8 string.
-  #[error(transparent)]
-  Utf8Error(#[from] core::str::Utf8Error),
+  Port(#[from] core::num::ParseIntError),
 }
 
 /// A node address which supports both `domain:port` and socket address.
@@ -191,20 +169,19 @@ impl FromStr for NodeAddress {
       Err(_) => {
         let res: Result<IpAddr, _> = s.parse();
         match res {
-          Ok(_) => Err(ParseNodeAddressError::MissingPort),
+          Ok(_) => Err(ParseNodeAddressError::PortNotFound),
           Err(_) => {
             let Some((domain, port)) = s.rsplit_once(':') else {
-              return Err(ParseNodeAddressError::MissingPort);
+              return Err(ParseNodeAddressError::PortNotFound);
             };
 
-            let port = port.parse().map_err(ParseNodeAddressError::InvalidPort)?;
-            let dns = Domain::try_from(domain).map_err(ParseNodeAddressError::InvalidDomain)?;
+            let port = port.parse()?;
+            let dns = Domain::try_from(domain)?;
 
             Ok(Self {
               kind: Kind::Domain(dns),
               port,
             })
-            .map_err(ParseNodeAddressError::InvalidDomain)
           }
         }
       }
@@ -227,21 +204,20 @@ impl TryFrom<(&str, u16)> for NodeAddress {
           kind: Kind::Domain(dns),
           port,
         })
-        .map_err(ParseNodeAddressError::InvalidDomain),
+        .map_err(Into::into),
     }
   }
 }
 
 impl NodeAddress {
   /// Create a new address from domain and port
-  pub fn from_domain_static(s: &'static str, port: u16) -> Result<Self, ParseNodeAddressError> {
-    match Domain::new_static(s) {
-      Ok(d) => Ok(Self {
+  pub fn from_domain(s: &str, port: u16) -> Result<Self, ParseNodeAddressError> {
+    Domain::try_from(s)
+      .map(|d| Self {
         kind: Kind::Domain(d),
         port,
-      }),
-      Err(e) => Err(ParseNodeAddressError::InvalidDomain(e)),
-    }
+      })
+      .map_err(Into::into)
   }
 
   /// Returns the domain of the address if this address can only be represented by domain name
@@ -249,6 +225,14 @@ impl NodeAddress {
     match &self.kind {
       Kind::Ip(_) => None,
       Kind::Domain(name) => Some(name.as_str()),
+    }
+  }
+
+  /// Returns the fqdn of the address if this address can only be represented by domain name
+  pub fn fqdn(&self) -> Option<&str> {
+    match &self.kind {
+      Kind::Ip(_) => None,
+      Kind::Domain(name) => Some(name.fqdn_str()),
     }
   }
 
@@ -424,7 +408,9 @@ mod tests {
 
   #[test]
   fn test_constructor() {
-    let a = NodeAddress::from_domain_static("www.example.com", 80).unwrap();
+    let a = NodeAddress::from_domain("www.example.com", 80).unwrap();
     assert_eq!(a.domain().unwrap(), "www.example.com");
+    assert_eq!(a.port(), 80);
+    assert_eq!(a.fqdn().unwrap(), "www.example.com.");
   }
 }

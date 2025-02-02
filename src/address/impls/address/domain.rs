@@ -1,4 +1,4 @@
-use core::{fmt, hash::Hash};
+use core::fmt;
 
 use smol_str03::SmolStr;
 
@@ -76,15 +76,6 @@ impl core::hash::Hash for Domain {
 }
 
 impl Domain {
-  /// Add const constructor for static DNS names
-  pub const fn new_static(s: &'static str) -> Result<Self, InvalidDomainError> {
-    // Validate at compile time
-    match validate(s.as_bytes()) {
-      Ok(()) => Ok(Self(SmolStr::new_static(s))),
-      Err(e) => Err(e),
-    }
-  }
-
   /// Returns the str representation.
   #[inline]
   pub fn as_str(&self) -> &str {
@@ -97,7 +88,7 @@ impl Domain {
     self.0.as_str()
   }
 
-  fn try_from_inner(value: &[u8], validated: bool) -> Result<Self, InvalidDomainError> {
+  fn try_from_inner(value: &[u8], validated: bool) -> Result<Self, PraseDomainError> {
     if !validated {
       validate(value)?;
     }
@@ -133,7 +124,7 @@ impl Domain {
 
 #[cfg(feature = "alloc")]
 impl TryFrom<String> for Domain {
-  type Error = InvalidDomainError;
+  type Error = PraseDomainError;
 
   fn try_from(value: String) -> Result<Self, Self::Error> {
     // String is guaranteed to be valid UTF-8, but we need to validate DNS rules
@@ -143,7 +134,7 @@ impl TryFrom<String> for Domain {
 
 #[cfg(feature = "alloc")]
 impl TryFrom<&String> for Domain {
-  type Error = InvalidDomainError;
+  type Error = PraseDomainError;
 
   fn try_from(value: &String) -> Result<Self, Self::Error> {
     value.as_str().try_into()
@@ -151,7 +142,7 @@ impl TryFrom<&String> for Domain {
 }
 
 impl<'a> TryFrom<&'a str> for Domain {
-  type Error = InvalidDomainError;
+  type Error = PraseDomainError;
 
   fn try_from(value: &'a str) -> Result<Self, Self::Error> {
     // str is guaranteed to be valid UTF-8, but we need to validate DNS rules
@@ -160,7 +151,7 @@ impl<'a> TryFrom<&'a str> for Domain {
 }
 
 impl core::str::FromStr for Domain {
-  type Err = InvalidDomainError;
+  type Err = PraseDomainError;
 
   fn from_str(value: &str) -> Result<Self, Self::Err> {
     value.try_into()
@@ -168,7 +159,7 @@ impl core::str::FromStr for Domain {
 }
 
 impl<'a> TryFrom<&'a [u8]> for Domain {
-  type Error = InvalidDomainError;
+  type Error = PraseDomainError;
 
   fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
     // bytes is guaranteed to be valid UTF-8, but we need to validate DNS rules
@@ -185,17 +176,17 @@ impl AsRef<str> for Domain {
 /// The provided input could not be parsed because
 /// it is not a syntactically-valid DNS Domain.
 #[derive(Debug)]
-pub struct InvalidDomainError;
+pub struct PraseDomainError;
 
-impl fmt::Display for InvalidDomainError {
+impl fmt::Display for PraseDomainError {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    f.write_str("invalid dns name")
+    f.write_str("invalid domain name")
   }
 }
 
-impl core::error::Error for InvalidDomainError {}
+impl core::error::Error for PraseDomainError {}
 
-const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
+const fn validate(input: &[u8]) -> Result<(), PraseDomainError> {
   enum State {
     Start,
     Next,
@@ -217,20 +208,18 @@ const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
 
   let len = input.len();
   if input.len() > MAX_NAME_LENGTH {
-    return Err(InvalidDomainError);
+    return Err(PraseDomainError);
   }
 
   let mut i = 0;
   while i < len {
     let ch = input[i];
     state = match (state, ch) {
-      (Start | Next | NextAfterNumericOnly | Hyphen { .. }, b'.') => {
-        return Err(InvalidDomainError)
-      }
+      (Start | Next | NextAfterNumericOnly | Hyphen { .. }, b'.') => return Err(PraseDomainError),
       (Subsequent { .. }, b'.') => Next,
       (NumericOnly { .. }, b'.') => NextAfterNumericOnly,
       (Subsequent { len } | NumericOnly { len } | Hyphen { len }, _) if len >= MAX_LABEL_LENGTH => {
-        return Err(InvalidDomainError)
+        return Err(PraseDomainError)
       }
       (Start | Next | NextAfterNumericOnly, b'0'..=b'9') => NumericOnly { len: 1 },
       (NumericOnly { len }, b'0'..=b'9') => NumericOnly { len: len + 1 },
@@ -242,7 +231,7 @@ const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
         Subsequent { len } | NumericOnly { len } | Hyphen { len },
         b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'0'..=b'9',
       ) => Subsequent { len: len + 1 },
-      _ => return Err(InvalidDomainError),
+      _ => return Err(PraseDomainError),
     };
     i += 1;
   }
@@ -251,7 +240,7 @@ const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
     state,
     Start | Hyphen { .. } | NumericOnly { .. } | NextAfterNumericOnly
   ) {
-    return Err(InvalidDomainError);
+    return Err(PraseDomainError);
   }
 
   Ok(())
@@ -338,7 +327,7 @@ mod tests {
   fn test_basic() {
     let name = Domain::try_from(&"localhost".to_string()).unwrap();
     assert_eq!("localhost", name.as_ref());
-    let err = InvalidDomainError;
+    let err = PraseDomainError;
     println!("{}", err);
   }
 
