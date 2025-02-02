@@ -108,8 +108,8 @@ impl Domain {
       } else {
         domain
       };
-      let valid_domain = domain_to_ascii_cow(without_dot, AsciiDenyList::EMPTY)
-        .map_err(|_| ParseDomainError)?;
+      let valid_domain =
+        domain_to_ascii_cow(without_dot, AsciiDenyList::EMPTY).map_err(|_| ParseDomainError)?;
 
       if domain.ends_with(b".") && matches!(valid_domain, Cow::Borrowed(_)) {
         return Ok(Self(

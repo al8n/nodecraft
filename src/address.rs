@@ -6,7 +6,7 @@ use cheap_clone::CheapClone;
 pub(crate) use impls::Kind;
 
 #[cfg(feature = "std")]
-pub use impls::{HostAddr, ParseHostAddrError, Domain, ParseDomainError};
+pub use impls::{Domain, HostAddr, ParseDomainError, ParseHostAddrError};
 
 /// Address abstraction for distributed systems
 pub trait Address:

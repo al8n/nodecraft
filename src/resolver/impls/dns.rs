@@ -9,7 +9,7 @@ use agnostic::{net::ToSocketAddrs, Runtime};
 use crossbeam_skiplist::SkipMap;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{Domain, Kind, HostAddr};
+use crate::{Domain, HostAddr, Kind};
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {

@@ -2,7 +2,7 @@ use core::time::Duration;
 use std::net::SocketAddr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{address::Domain, Kind, HostAddr};
+use crate::{address::Domain, HostAddr, Kind};
 
 use crossbeam_skiplist::SkipMap;
 
