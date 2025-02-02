@@ -48,24 +48,12 @@ pub trait AddressResolver: Send + Sync + 'static {
   type Address: Address;
 
   /// The address type returned by the resolver.
-  #[cfg(not(feature = "transformable"))]
   type ResolvedAddress: CheapClone
     + core::hash::Hash
     + Eq
+    + Ord
     + core::fmt::Debug
     + core::fmt::Display
-    + Send
-    + Sync
-    + 'static;
-
-  /// The address type returned by the resolver.
-  #[cfg(feature = "transformable")]
-  type ResolvedAddress: CheapClone
-    + core::hash::Hash
-    + Eq
-    + core::fmt::Debug
-    + core::fmt::Display
-    + transformable::Transformable
     + Send
     + Sync
     + 'static;

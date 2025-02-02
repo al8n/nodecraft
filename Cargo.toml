@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.6.0"
+version = "0.7.0"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -15,11 +15,10 @@ rust-version = "1.81.0"
 
 [features]
 default = ["std"]
-full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
-alloc = ["smol_str03", "cheap-clone/alloc", "transformable?/alloc"]
+full = ["std", "agnostic", "dns", "resolver", "serde", "tracing", "length-delimited"]
+alloc = ["smol_str03", "cheap-clone/alloc", "length-delimited?/alloc"]
 std = [
   "alloc",
-  "transformable?/std",
   "cheap-clone/std",
   "smol_str03?/std",
   "smol_str02?/std",
@@ -27,13 +26,14 @@ std = [
   "serde?/std",
   "humantime-serde",
   "futures?/std",
+  "length-delimited?/std",
 ]
 
 # enable runtime agnostic features
 agnostic = ["dep:agnostic", "async", "std"]
 
 # enable async features
-async = ["dep:futures", "std", "transformable?/async"]
+async = ["dep:futures", "std"]
 
 # enable dns node address resolver
 dns = [
@@ -56,8 +56,8 @@ dnssec-openssl = ["dns", "agnostic/dnssec-openssl"]
 dnssec-ring = ["dnssec", "agnostic/dnssec-ring"]
 dnssec = ["dns", "agnostic/dnssec"]
 
-smol_str02 = ["dep:smol_str02", "alloc", "transformable/smol_str02", "cheap-clone/smol_str02"]
-smol_str03 = ["dep:smol_str03", "alloc", "transformable/smol_str03", "rkyv/smol_str-0_3"]
+smol_str02 = ["dep:smol_str02", "alloc", "cheap-clone/smol_str02"]
+smol_str03 = ["dep:smol_str03", "alloc", "cheap-clone/smol_str03", "length-delimited?/smol_str03", "rkyv?/smol_str-0_3"]
 
 # enable node address resolver
 resolver = ["async", "agnostic/net", "crossbeam-skiplist/default", "std"]
@@ -71,7 +71,7 @@ serde = [
 ]
 rkyv = ["dep:rkyv"]
 
-transformable = ["dep:transformable"]
+length-delimited = ["length-delimited/send", "length-delimited/sync", "length-delimited/static", "length-delimited/error"]
 
 # enable tracing
 tracing = ["dep:tracing"]
@@ -85,7 +85,7 @@ agnostic = { version = "0.7", default-features = false, optional = true }
 byteorder = "1"
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "2", default-features = false }
-transformable = { version = "0.2", default-features = false, optional = true }
+length-delimited = { version = "0.1", default-features = false, optional = true }
 serde = { version = "1", default-features = false, optional = true, features = [
   "derive",
 ] }

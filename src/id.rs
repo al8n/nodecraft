@@ -6,15 +6,9 @@ use core::{
 mod impls;
 use cheap_clone::CheapClone;
 #[cfg(any(feature = "std", feature = "alloc"))]
-pub use impls::{NodeId, NodeIdTransformError};
+pub use impls::{NodeId, ParseNodeIdError};
 
 /// Id abstraction for distributed systems
-#[cfg(feature = "transformable")]
-pub trait Id:
-  CheapClone + Eq + Hash + Debug + Display + transformable::Transformable + Sized + Unpin + 'static
-{
-}
+pub trait Id: CheapClone + Eq + Ord + Hash + Debug + Display + Sized + Unpin + 'static {}
 
-/// Id abstraction for distributed systems
-#[cfg(not(feature = "transformable"))]
-pub trait Id: CheapClone + Eq + Hash + Debug + Display + Sized + Unpin + 'static {}
+impl<T> Id for T where T: CheapClone + Eq + Ord + Hash + Debug + Display + Sized + Unpin + 'static {}
