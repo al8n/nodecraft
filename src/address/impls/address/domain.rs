@@ -2,7 +2,7 @@ use core::fmt;
 
 use smol_str03::SmolStr;
 
-/// A type which encapsulates a string (borrowed or owned) that is a syntactically valid DNS name.
+/// A type which encapsulates a string that is a syntactically domain name.
 #[derive(Clone, Debug, Eq)]
 #[cfg_attr(
   feature = "rkyv",
@@ -12,7 +12,7 @@ use smol_str03::SmolStr;
   feature = "rkyv",
   rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
-pub(crate) struct Domain(SmolStr);
+pub struct Domain(SmolStr);
 
 #[cfg(feature = "serde")]
 const _: () = {
@@ -248,6 +248,8 @@ const fn validate(input: &[u8]) -> Result<(), PraseDomainError> {
 
 #[cfg(test)]
 mod tests {
+  use core::str::FromStr;
+
   use super::*;
 
   #[cfg(feature = "alloc")]
@@ -357,6 +359,24 @@ mod tests {
     assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
 
     let name = Domain::try_from(b"labelendswithnumber1.bar.com.".as_slice()).unwrap();
+    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+  }
+
+  #[test]
+  fn test_try_from_str() {
+    use super::Domain;
+
+    let name = Domain::try_from("localhost").unwrap();
+    assert_eq!("localhost", name.as_str());
+    assert_eq!("localhost.", name.fqdn_str());
+
+    let name = Domain::from_str("localhost.").unwrap();
+    assert_eq!("localhost", name.as_str());
+
+    let name = Domain::from_str("labelendswithnumber1.bar.com").unwrap();
+    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+
+    let name = Domain::try_from("labelendswithnumber1.bar.com.").unwrap();
     assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
   }
 }

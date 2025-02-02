@@ -4,7 +4,7 @@ use std::{
 };
 
 mod domain;
-pub(crate) use domain::{Domain, PraseDomainError};
+pub use domain::{Domain, PraseDomainError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -331,6 +331,7 @@ mod tests {
     println!("{}", addr);
     println!("{}", domain);
     assert!(addr.domain().is_none());
+    assert!(addr.fqdn().is_none());
     assert!(addr.ip().is_some());
     assert!(domain.ip().is_none());
     assert!(domain.domain().is_some());
@@ -409,6 +410,11 @@ mod tests {
   #[test]
   fn test_constructor() {
     let a = NodeAddress::from_domain("www.example.com", 80).unwrap();
+    assert_eq!(a.domain().unwrap(), "www.example.com");
+    assert_eq!(a.port(), 80);
+    assert_eq!(a.fqdn().unwrap(), "www.example.com.");
+
+    let a = NodeAddress::try_from(("www.example.com", 80)).unwrap();
     assert_eq!(a.domain().unwrap(), "www.example.com");
     assert_eq!(a.port(), 80);
     assert_eq!(a.fqdn().unwrap(), "www.example.com.");
