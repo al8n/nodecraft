@@ -1,6 +1,5 @@
 use core::borrow::Borrow;
 
-use length_delimited::InsufficientBuffer;
 use smol_str03::SmolStr;
 
 // use crate::Id;
@@ -22,9 +21,14 @@ pub enum ParseNodeIdError {
     /// The actual size of the [`NodeId`].
     actual: usize,
   },
-  /// Returned when the buffer is too small to encode the [`Id`].
-  #[error(transparent)]
-  InsufficientBuffer(InsufficientBuffer),
+  /// Returned when the buffer is too small to encode the [`NodeId`].
+  #[error("insufficient buffer, required: {required}, remaining: {remaining}")]
+  InsufficientBuffer {
+    /// The buffer size required to encode the [`NodeId`].
+    required: u64,
+    /// The buffer size remaining.
+    remaining: u64,
+  },
   /// Returned when the id is not a valid utf8 string.
   #[error(transparent)]
   Utf8Error(#[from] core::str::Utf8Error),

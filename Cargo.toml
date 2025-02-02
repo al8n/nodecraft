@@ -15,8 +15,8 @@ rust-version = "1.81.0"
 
 [features]
 default = ["std"]
-full = ["std", "agnostic", "dns", "resolver", "serde", "tracing", "length-delimited"]
-alloc = ["smol_str03", "cheap-clone/alloc", "length-delimited?/alloc"]
+full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
+alloc = ["smol_str03", "cheap-clone/alloc"]
 std = [
   "alloc",
   "cheap-clone/std",
@@ -26,7 +26,6 @@ std = [
   "serde?/std",
   "humantime-serde",
   "futures?/std",
-  "length-delimited?/std",
 ]
 
 # enable runtime agnostic features
@@ -57,7 +56,7 @@ dnssec-ring = ["dnssec", "agnostic/dnssec-ring"]
 dnssec = ["dns", "agnostic/dnssec"]
 
 smol_str02 = ["dep:smol_str02", "alloc", "cheap-clone/smol_str02"]
-smol_str03 = ["dep:smol_str03", "alloc", "cheap-clone/smol_str03", "length-delimited?/smol_str03", "rkyv?/smol_str-0_3"]
+smol_str03 = ["dep:smol_str03", "alloc", "cheap-clone/smol_str03", "rkyv?/smol_str-0_3"]
 
 # enable node address resolver
 resolver = ["async", "agnostic/net", "crossbeam-skiplist/default", "std"]
@@ -71,8 +70,6 @@ serde = [
 ]
 rkyv = ["dep:rkyv"]
 
-length-delimited = ["length-delimited/send", "length-delimited/sync", "length-delimited/static", "length-delimited/error"]
-
 # enable tracing
 tracing = ["dep:tracing"]
 
@@ -85,7 +82,6 @@ agnostic = { version = "0.7", default-features = false, optional = true }
 byteorder = "1"
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "2", default-features = false }
-length-delimited = { version = "0.1", default-features = false, optional = true }
 serde = { version = "1", default-features = false, optional = true, features = [
   "derive",
 ] }

@@ -16,7 +16,6 @@ mod node;
 
 pub use address::*;
 pub use id::*;
-pub use length_delimited;
 pub use node::*;
 
 /// `AddressResolver` trait for async.
