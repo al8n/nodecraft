@@ -9,7 +9,7 @@ use agnostic::{net::ToSocketAddrs, Runtime};
 use crossbeam_skiplist::SkipMap;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{Domain, Kind, NodeAddress};
+use crate::{Domain, HostAddr, Kind};
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
@@ -198,7 +198,7 @@ pub struct DnsResolver<R: Runtime> {
 }
 
 impl<R: Runtime> AddressResolver for DnsResolver<R> {
-  type Address = NodeAddress;
+  type Address = HostAddr;
   type Error = Error;
   type ResolvedAddress = SocketAddr;
   type Runtime = R;
@@ -287,7 +287,7 @@ mod tests {
     let resolver = DnsResolver::<TokioRuntime>::new(Default::default())
       .await
       .unwrap();
-    let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+    let google_addr = HostAddr::try_from("google.com:8080").unwrap();
     let ip = resolver.resolve(&google_addr).await.unwrap();
     println!("google.com:8080 resolved to: {}", ip);
   }
@@ -301,7 +301,7 @@ mod tests {
     )
     .await
     .unwrap();
-    let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+    let google_addr = HostAddr::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
     let dns_name = Domain::try_from("google.com").unwrap();
     assert!(!resolver
@@ -331,10 +331,10 @@ mod tests {
     )
     .await
     .unwrap();
-    let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+    let google_addr = HostAddr::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
     resolver.resolve(&google_addr).await.unwrap();
-    let ip_addr = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
+    let ip_addr = HostAddr::try_from(("127.0.0.1", 8080)).unwrap();
     resolver.resolve(&ip_addr).await.unwrap();
     let dns_name = Domain::try_from("google.com").unwrap();
     assert!(!resolver
@@ -357,7 +357,7 @@ mod tests {
     println!("{err}");
     println!("{err:?}");
 
-    let bad_addr = NodeAddress::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();
+    let bad_addr = HostAddr::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();
     assert!(resolver.resolve(&bad_addr).await.is_err());
   }
 

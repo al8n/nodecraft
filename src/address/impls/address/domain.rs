@@ -1,8 +1,10 @@
-use core::{fmt, hash::Hash};
+use core::fmt;
+use std::borrow::Cow;
 
+use idna::{domain_to_ascii_cow, AsciiDenyList};
 use smol_str03::SmolStr;
 
-/// A type which encapsulates a string (borrowed or owned) that is a syntactically valid DNS name.
+/// A type which encapsulates a string that is a syntactically domain name.
 #[derive(Clone, Debug, Eq)]
 #[cfg_attr(
   feature = "rkyv",
@@ -12,7 +14,7 @@ use smol_str03::SmolStr;
   feature = "rkyv",
   rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
-pub(crate) struct Domain(SmolStr);
+pub struct Domain(SmolStr);
 
 #[cfg(feature = "serde")]
 const _: () = {
@@ -76,15 +78,6 @@ impl core::hash::Hash for Domain {
 }
 
 impl Domain {
-  /// Add const constructor for static DNS names
-  pub const fn new_static(s: &'static str) -> Result<Self, InvalidDomainError> {
-    // Validate at compile time
-    match validate(s.as_bytes()) {
-      Ok(()) => Ok(Self(SmolStr::new_static(s))),
-      Err(e) => Err(e),
-    }
-  }
-
   /// Returns the str representation.
   #[inline]
   pub fn as_str(&self) -> &str {
@@ -97,24 +90,43 @@ impl Domain {
     self.0.as_str()
   }
 
-  fn try_from_inner(value: &[u8], validated: bool) -> Result<Self, InvalidDomainError> {
-    if !validated {
-      validate(value)?;
-    }
+  /// Create a new Domain from a string, performing IDNA processing and validation.
+  pub fn try_from_inner(domain: &[u8]) -> Result<Self, ParseDomainError> {
+    let domain = if domain.is_ascii() {
+      validate(domain)?;
 
-    // Early return if already has trailing dot
-    if value.ends_with(b".") {
-      return Ok(Self(
-        // SAFETY: We know the input is valid UTF-8 from validation
-        unsafe { core::str::from_utf8_unchecked(value) }.into(),
-      ));
-    }
+      let domain = core::str::from_utf8(domain).expect("bytes must be valid utf8");
+      // Early return if already has trailing dot
+      if domain.ends_with('.') {
+        return Ok(Self(domain.into()));
+      }
 
-    let len = value.len();
+      Cow::Borrowed(domain)
+    } else {
+      let without_dot = if domain.ends_with(b".") {
+        &domain[..domain.len() - 1]
+      } else {
+        domain
+      };
+      let valid_domain =
+        domain_to_ascii_cow(without_dot, AsciiDenyList::EMPTY).map_err(|_| ParseDomainError)?;
+
+      if domain.ends_with(b".") && matches!(valid_domain, Cow::Borrowed(_)) {
+        return Ok(Self(
+          core::str::from_utf8(domain)
+            .expect("bytes must be valid utf8")
+            .into(),
+        ));
+      }
+
+      valid_domain
+    };
+
+    let len = domain.len();
     if len + 1 < 23 {
       // Use stack allocation for small strings
       let mut buf = [0u8; 23];
-      buf[..len].copy_from_slice(value);
+      buf[..len].copy_from_slice(domain.as_bytes());
       buf[len] = b'.'; // Add trailing dot
       Ok(Self(
         // SAFETY: We know the input is valid UTF-8 from validation
@@ -122,9 +134,8 @@ impl Domain {
       ))
     } else {
       // Consider pre-allocating with capacity
-      let mut string = String::with_capacity(value.len() + 1);
-      // SAFETY: We know the input is valid UTF-8 from validation
-      string.push_str(unsafe { core::str::from_utf8_unchecked(value) });
+      let mut string = String::with_capacity(domain.len() + 1);
+      string.push_str(&domain);
       string.push('.');
       Ok(Self(string.into()))
     }
@@ -133,17 +144,16 @@ impl Domain {
 
 #[cfg(feature = "alloc")]
 impl TryFrom<String> for Domain {
-  type Error = InvalidDomainError;
+  type Error = ParseDomainError;
 
   fn try_from(value: String) -> Result<Self, Self::Error> {
-    // String is guaranteed to be valid UTF-8, but we need to validate DNS rules
-    Self::try_from_inner(value.as_bytes(), false)
+    Self::try_from_inner(value.as_bytes())
   }
 }
 
 #[cfg(feature = "alloc")]
 impl TryFrom<&String> for Domain {
-  type Error = InvalidDomainError;
+  type Error = ParseDomainError;
 
   fn try_from(value: &String) -> Result<Self, Self::Error> {
     value.as_str().try_into()
@@ -151,16 +161,15 @@ impl TryFrom<&String> for Domain {
 }
 
 impl<'a> TryFrom<&'a str> for Domain {
-  type Error = InvalidDomainError;
+  type Error = ParseDomainError;
 
   fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-    // str is guaranteed to be valid UTF-8, but we need to validate DNS rules
-    Self::try_from_inner(value.as_bytes(), false)
+    Self::try_from_inner(value.as_bytes())
   }
 }
 
 impl core::str::FromStr for Domain {
-  type Err = InvalidDomainError;
+  type Err = ParseDomainError;
 
   fn from_str(value: &str) -> Result<Self, Self::Err> {
     value.try_into()
@@ -168,11 +177,10 @@ impl core::str::FromStr for Domain {
 }
 
 impl<'a> TryFrom<&'a [u8]> for Domain {
-  type Error = InvalidDomainError;
+  type Error = ParseDomainError;
 
   fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-    // bytes is guaranteed to be valid UTF-8, but we need to validate DNS rules
-    Self::try_from_inner(value, true)
+    Self::try_from_inner(value)
   }
 }
 
@@ -185,17 +193,17 @@ impl AsRef<str> for Domain {
 /// The provided input could not be parsed because
 /// it is not a syntactically-valid DNS Domain.
 #[derive(Debug)]
-pub struct InvalidDomainError;
+pub struct ParseDomainError;
 
-impl fmt::Display for InvalidDomainError {
+impl fmt::Display for ParseDomainError {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    f.write_str("invalid dns name")
+    f.write_str("invalid domain name")
   }
 }
 
-impl core::error::Error for InvalidDomainError {}
+impl core::error::Error for ParseDomainError {}
 
-const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
+const fn validate(input: &[u8]) -> Result<(), ParseDomainError> {
   enum State {
     Start,
     Next,
@@ -217,20 +225,18 @@ const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
 
   let len = input.len();
   if input.len() > MAX_NAME_LENGTH {
-    return Err(InvalidDomainError);
+    return Err(ParseDomainError);
   }
 
   let mut i = 0;
   while i < len {
     let ch = input[i];
     state = match (state, ch) {
-      (Start | Next | NextAfterNumericOnly | Hyphen { .. }, b'.') => {
-        return Err(InvalidDomainError)
-      }
+      (Start | Next | NextAfterNumericOnly | Hyphen { .. }, b'.') => return Err(ParseDomainError),
       (Subsequent { .. }, b'.') => Next,
       (NumericOnly { .. }, b'.') => NextAfterNumericOnly,
       (Subsequent { len } | NumericOnly { len } | Hyphen { len }, _) if len >= MAX_LABEL_LENGTH => {
-        return Err(InvalidDomainError)
+        return Err(ParseDomainError)
       }
       (Start | Next | NextAfterNumericOnly, b'0'..=b'9') => NumericOnly { len: 1 },
       (NumericOnly { len }, b'0'..=b'9') => NumericOnly { len: len + 1 },
@@ -242,7 +248,7 @@ const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
         Subsequent { len } | NumericOnly { len } | Hyphen { len },
         b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'0'..=b'9',
       ) => Subsequent { len: len + 1 },
-      _ => return Err(InvalidDomainError),
+      _ => return Err(ParseDomainError),
     };
     i += 1;
   }
@@ -251,7 +257,7 @@ const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
     state,
     Start | Hyphen { .. } | NumericOnly { .. } | NextAfterNumericOnly
   ) {
-    return Err(InvalidDomainError);
+    return Err(ParseDomainError);
   }
 
   Ok(())
@@ -259,6 +265,8 @@ const fn validate(input: &[u8]) -> Result<(), InvalidDomainError> {
 
 #[cfg(test)]
 mod tests {
+  use core::str::FromStr;
+
   use super::*;
 
   #[cfg(feature = "alloc")]
@@ -317,7 +325,9 @@ mod tests {
     ("numeric-only-middle-label.4.com", true),
     ("1000-sans.badssl.com", true),
     ("twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfi", true),
-    ("twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourc", false),
+    ("twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourc", false), 
+    ("测试.com", true),
+    ("测试.中国", true),
   ];
 
   #[cfg(feature = "alloc")]
@@ -338,7 +348,7 @@ mod tests {
   fn test_basic() {
     let name = Domain::try_from(&"localhost".to_string()).unwrap();
     assert_eq!("localhost", name.as_ref());
-    let err = InvalidDomainError;
+    let err = ParseDomainError;
     println!("{}", err);
   }
 
@@ -369,5 +379,34 @@ mod tests {
 
     let name = Domain::try_from(b"labelendswithnumber1.bar.com.".as_slice()).unwrap();
     assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+  }
+
+  #[test]
+  fn test_try_from_str() {
+    use super::Domain;
+
+    let name = Domain::try_from("localhost").unwrap();
+    assert_eq!("localhost", name.as_str());
+    assert_eq!("localhost.", name.fqdn_str());
+
+    let name = Domain::from_str("localhost.").unwrap();
+    assert_eq!("localhost", name.as_str());
+
+    let name = Domain::from_str("labelendswithnumber1.bar.com").unwrap();
+    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+
+    let name = Domain::try_from("labelendswithnumber1.bar.com.").unwrap();
+    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+  }
+
+  #[test]
+  fn test_non_ascii() {
+    let name = Domain::try_from("测试.com.").unwrap();
+    assert_eq!("xn--0zwm56d.com", name.as_str());
+    assert_eq!("xn--0zwm56d.com.", name.fqdn_str());
+
+    let name = Domain::try_from("测试.中国").unwrap();
+    assert_eq!("xn--0zwm56d.xn--fiqs8s", name.as_str());
+    assert_eq!("xn--0zwm56d.xn--fiqs8s.", name.fqdn_str());
   }
 }

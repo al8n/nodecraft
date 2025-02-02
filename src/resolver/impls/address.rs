@@ -2,14 +2,14 @@ use core::time::Duration;
 use std::net::SocketAddr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{address::Domain, Kind, NodeAddress};
+use crate::{address::Domain, HostAddr, Kind};
 
 use crossbeam_skiplist::SkipMap;
 
 /// The options used to construct a [`AddressResolver`].
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct NodeAddressResolverOptions {
+pub struct HostAddrResolverOptions {
   #[cfg_attr(
     feature = "serde",
     serde(with = "humantime_serde", default = "default_record_ttl")
@@ -17,7 +17,7 @@ pub struct NodeAddressResolverOptions {
   record_ttl: Duration,
 }
 
-impl Default for NodeAddressResolverOptions {
+impl Default for HostAddrResolverOptions {
   fn default() -> Self {
     Self::new()
   }
@@ -27,8 +27,8 @@ const fn default_record_ttl() -> Duration {
   Duration::from_secs(60)
 }
 
-impl NodeAddressResolverOptions {
-  /// Create a new [`NodeAddressResolverOptions`].
+impl HostAddrResolverOptions {
+  /// Create a new [`HostAddrResolverOptions`].
   #[inline]
   pub const fn new() -> Self {
     Self {
@@ -57,7 +57,7 @@ impl NodeAddressResolverOptions {
   }
 }
 
-pub use resolver::NodeAddressResolver;
+pub use resolver::HostAddrResolver;
 
 #[cfg(feature = "agnostic")]
 mod resolver {
@@ -82,24 +82,24 @@ mod resolver {
   /// 2. `[::1]:8080` // ipv6
   /// 3. `127.0.0.1:8080` // ipv4
   ///
-  pub struct NodeAddressResolver<R> {
+  pub struct HostAddrResolver<R> {
     cache: SkipMap<Domain, CachedSocketAddr>,
     record_ttl: Duration,
     _marker: std::marker::PhantomData<R>,
   }
 
-  impl<R> Default for NodeAddressResolver<R> {
+  impl<R> Default for HostAddrResolver<R> {
     fn default() -> Self {
       Self::new(Default::default())
     }
   }
 
-  impl<R: RuntimeLite> AddressResolver for NodeAddressResolver<R> {
-    type Address = NodeAddress;
+  impl<R: RuntimeLite> AddressResolver for HostAddrResolver<R> {
+    type Address = HostAddr;
     type ResolvedAddress = SocketAddr;
     type Error = std::io::Error;
     type Runtime = R;
-    type Options = NodeAddressResolverOptions;
+    type Options = HostAddrResolverOptions;
 
     #[inline]
     async fn new(opts: Self::Options) -> Result<Self, Self::Error> {
@@ -147,9 +147,9 @@ mod resolver {
     }
   }
 
-  impl<R> NodeAddressResolver<R> {
-    /// Create a new [`NodeAddressResolver`] with the given options.
-    pub fn new(opts: NodeAddressResolverOptions) -> Self {
+  impl<R> HostAddrResolver<R> {
+    /// Create a new [`HostAddrResolver`] with the given options.
+    pub fn new(opts: HostAddrResolverOptions) -> Self {
       Self {
         record_ttl: opts.record_ttl,
         cache: Default::default(),
@@ -166,8 +166,8 @@ mod resolver {
     async fn test_dns_resolver() {
       use agnostic::tokio::TokioRuntime;
 
-      let resolver = NodeAddressResolver::<TokioRuntime>::default();
-      let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+      let resolver = HostAddrResolver::<TokioRuntime>::default();
+      let google_addr = HostAddr::try_from("google.com:8080").unwrap();
       let ip = resolver.resolve(&google_addr).await.unwrap();
       println!("google.com:8080 resolved to: {}", ip);
     }
@@ -176,13 +176,13 @@ mod resolver {
     async fn test_dns_resolver_with_record_ttl() {
       use agnostic::tokio::TokioRuntime;
 
-      let resolver = NodeAddressResolver::<TokioRuntime>::new(
-        NodeAddressResolverOptions::new().with_record_ttl(Duration::from_millis(100)),
+      let resolver = HostAddrResolver::<TokioRuntime>::new(
+        HostAddrResolverOptions::new().with_record_ttl(Duration::from_millis(100)),
       );
-      let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+      let google_addr = HostAddr::try_from("google.com:8080").unwrap();
       resolver.resolve(&google_addr).await.unwrap();
       resolver.resolve(&google_addr).await.unwrap();
-      let ip_addr = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
+      let ip_addr = HostAddr::try_from(("127.0.0.1", 8080)).unwrap();
       resolver.resolve(&ip_addr).await.unwrap();
       let dns_name = Domain::try_from("google.com").unwrap();
       assert!(!resolver
@@ -201,7 +201,7 @@ mod resolver {
         .is_expired());
       resolver.resolve(&google_addr).await.unwrap();
 
-      let bad_addr = NodeAddress::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();
+      let bad_addr = HostAddr::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();
       assert!(resolver.resolve(&bad_addr).await.is_err());
     }
   }
@@ -228,16 +228,16 @@ mod resolver {
   /// 2. `[::1]:8080` // ipv6
   /// 3. `127.0.0.1:8080` // ipv4
   ///
-  pub struct NodeAddressResolver {
+  pub struct HostAddrResolver {
     cache: SkipMap<Domain, CachedSocketAddr>,
     record_ttl: Duration,
   }
 
-  impl AddressResolver for NodeAddressResolver {
-    type Address = NodeAddress;
+  impl AddressResolver for HostAddrResolver {
+    type Address = HostAddr;
     type ResolvedAddress = SocketAddr;
     type Error = std::io::Error;
-    type Options = NodeAddressResolverOptions;
+    type Options = HostAddrResolverOptions;
 
     #[inline]
     async fn new(opts: Self::Options) -> Result<Self, Self::Error> {
@@ -279,15 +279,15 @@ mod resolver {
     }
   }
 
-  impl Default for NodeAddressResolver {
+  impl Default for HostAddrResolver {
     fn default() -> Self {
       Self::new(Default::default())
     }
   }
 
-  impl NodeAddressResolver {
-    /// Create a new [`NodeAddressResolver`] with the given options.
-    pub fn new(opts: NodeAddressResolverOptions) -> Self {
+  impl HostAddrResolver {
+    /// Create a new [`HostAddrResolver`] with the given options.
+    pub fn new(opts: HostAddrResolverOptions) -> Self {
       Self {
         record_ttl: opts.record_ttl,
         cache: Default::default(),
@@ -301,18 +301,18 @@ mod resolver {
 
     #[tokio::test]
     async fn test_dns_resolver() {
-      let resolver = NodeAddressResolver::default();
-      let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+      let resolver = HostAddrResolver::default();
+      let google_addr = HostAddr::try_from("google.com:8080").unwrap();
       let ip = resolver.resolve(&google_addr).await.unwrap();
       println!("google.com:8080 resolved to: {}", ip);
     }
 
     #[tokio::test]
     async fn test_dns_resolver_with_record_ttl() {
-      let resolver = NodeAddressResolver::new(
-        NodeAddressResolverOptions::new().with_record_ttl(Duration::from_millis(100)),
+      let resolver = HostAddrResolver::new(
+        HostAddrResolverOptions::new().with_record_ttl(Duration::from_millis(100)),
       );
-      let google_addr = NodeAddress::try_from("google.com:8080").unwrap();
+      let google_addr = HostAddr::try_from("google.com:8080").unwrap();
       resolver.resolve(&google_addr).await.unwrap();
       let dns_name = Domain::try_from("google.com").unwrap();
       assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
@@ -329,7 +329,7 @@ mod tests {
 
   #[test]
   fn test_opts() {
-    let opts = NodeAddressResolverOptions::default();
+    let opts = HostAddrResolverOptions::default();
     assert_eq!(opts.record_ttl(), default_record_ttl());
     let mut opts = opts.with_record_ttl(Duration::from_secs(10));
     assert_eq!(opts.record_ttl(), Duration::from_secs(10));

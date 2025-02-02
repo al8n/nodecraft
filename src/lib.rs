@@ -1,19 +1,18 @@
 #![doc = include_str!("../README.md")]
 #![deny(missing_docs, warnings)]
-#![cfg_attr(not(any(feature = "std", test)), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+extern crate alloc as std;
 
-#[cfg(any(feature = "std", test))]
+#[cfg(feature = "std")]
 extern crate std;
 
 mod address;
 mod id;
 mod node;
-pub(crate) mod utils;
 
 pub use address::*;
 pub use id::*;
@@ -26,8 +25,5 @@ pub mod resolver;
 
 #[cfg(feature = "async")]
 pub use futures;
-
-#[cfg(feature = "transformable")]
-pub use transformable::{self, Transformable};
 
 pub use cheap_clone::CheapClone;

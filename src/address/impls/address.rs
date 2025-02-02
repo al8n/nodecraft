@@ -1,16 +1,10 @@
-use crate::{Address, Transformable};
-
-#[cfg(feature = "std")]
-use crate::utils::invalid_data;
-
 use std::{
-  mem,
-  net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+  net::{IpAddr, SocketAddr},
   str::FromStr,
 };
 
 mod domain;
-pub(crate) use domain::{Domain, InvalidDomainError};
+pub use domain::{Domain, ParseDomainError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -44,43 +38,21 @@ impl Ord for Kind {
   }
 }
 
-/// An error which can be returned when parsing a [`NodeAddress`].
+/// An error which can be returned when parsing a [`HostAddr`].
 #[derive(Debug, thiserror::Error)]
-pub enum ParseNodeAddressError {
+pub enum ParseHostAddrError {
   /// Returned if the provided str is missing port.
   #[error("address is missing port")]
-  MissingPort,
+  PortNotFound,
   /// Returned if the provided str is not a valid address.
-  #[error("invalid DNS name {0}")]
-  InvalidDomain(InvalidDomainError),
+  #[error(transparent)]
+  Domain(#[from] ParseDomainError),
   /// Returned if the provided str is not a valid port.
   #[error("invalid port: {0}")]
-  InvalidPort(#[from] core::num::ParseIntError),
+  Port(#[from] core::num::ParseIntError),
 }
 
-/// An error which can be returned when encoding/decoding a [`NodeAddress`].
-#[derive(Debug, thiserror::Error)]
-pub enum NodeAddressError {
-  /// Returned if the provided buffer is too small.
-  #[error(
-    "buffer is too small, use `Address::encoded_len` to pre-allocate a buffer with enough space"
-  )]
-  EncodeBufferTooSmall,
-  /// Returned if fail to parsing the domain address.
-  #[error(transparent)]
-  ParseNodeAddressError(#[from] ParseNodeAddressError),
-  /// Returned if the provided bytes is corrupted.
-  #[error("{0}")]
-  Corrupted(&'static str),
-  /// Returned if the provided bytes contains an unknown address tag.
-  #[error("unknown address tag: {0}")]
-  UnknownAddressTag(u8),
-  /// Returned if the provided bytes is not a valid utf8 string.
-  #[error(transparent)]
-  Utf8Error(#[from] core::str::Utf8Error),
-}
-
-/// A node address which supports both `domain:port` and socket address.
+/// A host address which supports both `domain:port` and socket address.
 ///
 /// e.g. Valid format
 /// 1. `www.example.com:8080`
@@ -95,20 +67,18 @@ pub enum NodeAddressError {
   feature = "rkyv",
   rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
-pub struct NodeAddress {
+pub struct HostAddr {
   pub(crate) kind: Kind,
   pub(crate) port: u16,
 }
 
-impl Address for NodeAddress {}
-
-impl PartialOrd for NodeAddress {
+impl PartialOrd for HostAddr {
   fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
     Some(self.cmp(other))
   }
 }
 
-impl Ord for NodeAddress {
+impl Ord for HostAddr {
   fn cmp(&self, other: &Self) -> core::cmp::Ordering {
     match self.kind.cmp(&other.kind) {
       core::cmp::Ordering::Equal => self.port.cmp(&other.port),
@@ -117,7 +87,7 @@ impl Ord for NodeAddress {
   }
 }
 
-impl core::fmt::Display for NodeAddress {
+impl core::fmt::Display for HostAddr {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match &self.kind {
       Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
@@ -127,7 +97,7 @@ impl core::fmt::Display for NodeAddress {
 }
 
 #[cfg(feature = "serde")]
-impl serde::Serialize for NodeAddress {
+impl serde::Serialize for HostAddr {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
@@ -145,7 +115,7 @@ impl serde::Serialize for NodeAddress {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for NodeAddress {
+impl<'de> serde::Deserialize<'de> for HostAddr {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
@@ -155,7 +125,7 @@ impl<'de> serde::Deserialize<'de> for NodeAddress {
   }
 }
 
-impl From<SocketAddr> for NodeAddress {
+impl From<SocketAddr> for HostAddr {
   fn from(addr: SocketAddr) -> Self {
     Self {
       kind: Kind::Ip(addr.ip()),
@@ -164,7 +134,7 @@ impl From<SocketAddr> for NodeAddress {
   }
 }
 
-impl From<(IpAddr, u16)> for NodeAddress {
+impl From<(IpAddr, u16)> for HostAddr {
   fn from(addr: (IpAddr, u16)) -> Self {
     Self {
       kind: Kind::Ip(addr.0),
@@ -173,24 +143,24 @@ impl From<(IpAddr, u16)> for NodeAddress {
   }
 }
 
-impl TryFrom<String> for NodeAddress {
-  type Error = ParseNodeAddressError;
+impl TryFrom<String> for HostAddr {
+  type Error = ParseHostAddrError;
 
   fn try_from(s: String) -> Result<Self, Self::Error> {
     Self::from_str(s.as_str())
   }
 }
 
-impl TryFrom<&str> for NodeAddress {
-  type Error = ParseNodeAddressError;
+impl TryFrom<&str> for HostAddr {
+  type Error = ParseHostAddrError;
 
   fn try_from(value: &str) -> Result<Self, Self::Error> {
     Self::from_str(value)
   }
 }
 
-impl FromStr for NodeAddress {
-  type Err = ParseNodeAddressError;
+impl FromStr for HostAddr {
+  type Err = ParseHostAddrError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let res: Result<SocketAddr, _> = s.parse();
@@ -199,20 +169,19 @@ impl FromStr for NodeAddress {
       Err(_) => {
         let res: Result<IpAddr, _> = s.parse();
         match res {
-          Ok(_) => Err(ParseNodeAddressError::MissingPort),
+          Ok(_) => Err(ParseHostAddrError::PortNotFound),
           Err(_) => {
             let Some((domain, port)) = s.rsplit_once(':') else {
-              return Err(ParseNodeAddressError::MissingPort);
+              return Err(ParseHostAddrError::PortNotFound);
             };
 
-            let port = port.parse().map_err(ParseNodeAddressError::InvalidPort)?;
-            let dns = Domain::try_from(domain).map_err(ParseNodeAddressError::InvalidDomain)?;
+            let port = port.parse()?;
+            let dns = Domain::try_from(domain)?;
 
             Ok(Self {
               kind: Kind::Domain(dns),
               port,
             })
-            .map_err(ParseNodeAddressError::InvalidDomain)
           }
         }
       }
@@ -220,8 +189,8 @@ impl FromStr for NodeAddress {
   }
 }
 
-impl TryFrom<(&str, u16)> for NodeAddress {
-  type Error = ParseNodeAddressError;
+impl TryFrom<(&str, u16)> for HostAddr {
+  type Error = ParseHostAddrError;
 
   fn try_from((domain, port): (&str, u16)) -> Result<Self, Self::Error> {
     let res: Result<IpAddr, _> = domain.parse();
@@ -235,21 +204,20 @@ impl TryFrom<(&str, u16)> for NodeAddress {
           kind: Kind::Domain(dns),
           port,
         })
-        .map_err(ParseNodeAddressError::InvalidDomain),
+        .map_err(Into::into),
     }
   }
 }
 
-impl NodeAddress {
+impl HostAddr {
   /// Create a new address from domain and port
-  pub fn from_domain_static(s: &'static str, port: u16) -> Result<Self, ParseNodeAddressError> {
-    match Domain::new_static(s) {
-      Ok(d) => Ok(Self {
+  pub fn from_domain(s: &str, port: u16) -> Result<Self, ParseHostAddrError> {
+    Domain::try_from(s)
+      .map(|d| Self {
         kind: Kind::Domain(d),
         port,
-      }),
-      Err(e) => Err(ParseNodeAddressError::InvalidDomain(e)),
-    }
+      })
+      .map_err(Into::into)
   }
 
   /// Returns the domain of the address if this address can only be represented by domain name
@@ -257,6 +225,14 @@ impl NodeAddress {
     match &self.kind {
       Kind::Ip(_) => None,
       Kind::Domain(name) => Some(name.as_str()),
+    }
+  }
+
+  /// Returns the fqdn of the address if this address can only be represented by domain name
+  pub fn fqdn(&self) -> Option<&str> {
+    match &self.kind {
+      Kind::Ip(_) => None,
+      Kind::Domain(name) => Some(name.fqdn_str()),
     }
   }
 
@@ -289,370 +265,16 @@ impl NodeAddress {
   }
 }
 
-const PORT_SIZE: usize = mem::size_of::<u16>();
-const TAG_SIZE: usize = 1;
-/// A domain is less than 255 bytes, so u8 is enough to represent the length of a domain.
-const DOMAIN_LEN_SIZE: usize = 1;
-const V6_SIZE: usize = 16;
-const V4_SIZE: usize = 4;
-/// The minimum encoded length of an address.
-///
-/// TAG_SIZE + DOMAIN_LEN_SIZE + MINIMUM_DOMAIN_LEN + PORT_SIZE = 1 + 1 + 4 + 2 = 8 for domain
-/// so SocketAddrV4 is the minimum encoded length
-const MIN_ENCODED_LEN: usize = TAG_SIZE + V4_SIZE + PORT_SIZE;
-const V6_ENCODED_LEN: usize = TAG_SIZE + V6_SIZE + PORT_SIZE;
-
-/// If encoded size less than this value, we can use inline buffer to avoid heap allocation.
-const INLINE: usize = 64;
-
-#[cfg(feature = "transformable")]
-impl Transformable for NodeAddress {
-  type Error = NodeAddressError;
-
-  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
-    let encoded_len = self.encoded_len();
-    if dst.len() < self.encoded_len() {
-      return Err(Self::Error::EncodeBufferTooSmall);
-    }
-
-    match &self.kind {
-      Kind::Ip(addr) => match addr {
-        IpAddr::V4(addr) => {
-          dst[0] = 4;
-          dst[1..5].copy_from_slice(&addr.octets());
-          dst[5..7].copy_from_slice(&self.port.to_be_bytes());
-        }
-        IpAddr::V6(addr) => {
-          dst[0] = 6;
-          dst[1..17].copy_from_slice(&addr.octets());
-          dst[17..19].copy_from_slice(&self.port.to_be_bytes());
-        }
-      },
-      Kind::Domain(name) => {
-        let mut cur = 0;
-        dst[cur] = 0;
-        cur += TAG_SIZE;
-        let safe = name.fqdn_str();
-        dst[cur] = safe.len() as u8;
-        cur += DOMAIN_LEN_SIZE;
-        dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
-        cur += safe.len();
-        dst[cur..cur + PORT_SIZE].copy_from_slice(&self.port.to_be_bytes());
-      }
-    }
-    Ok(encoded_len)
-  }
-
-  #[cfg(feature = "std")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
-    let encoded_len = self.encoded_len();
-    match &self.kind {
-      Kind::Ip(addr) => match addr {
-        IpAddr::V4(addr) => {
-          let mut dst = [0; 7];
-          dst[0] = 4;
-          dst[1..5].copy_from_slice(&addr.octets());
-          dst[5..7].copy_from_slice(&self.port.to_be_bytes());
-          writer.write_all(&dst)
-        }
-        IpAddr::V6(addr) => {
-          let mut dst = [0; 19];
-          dst[0] = 6;
-          dst[1..17].copy_from_slice(&addr.octets());
-          dst[17..19].copy_from_slice(&self.port.to_be_bytes());
-          writer.write_all(&dst)
-        }
-      },
-      Kind::Domain(name) => {
-        let safe = name.fqdn_str();
-        let copy = |dst: &mut [u8]| {
-          let mut cur = 0;
-          dst[cur] = 0;
-          cur += TAG_SIZE;
-          dst[cur] = safe.len() as u8;
-          cur += DOMAIN_LEN_SIZE;
-          dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
-          cur += safe.len();
-          dst[cur..cur + PORT_SIZE].copy_from_slice(&self.port.to_be_bytes());
-        };
-        if encoded_len < INLINE {
-          let mut dst = [0; INLINE];
-          copy(&mut dst[..encoded_len]);
-          writer.write_all(&dst[..encoded_len])
-        } else {
-          let mut dst = vec![0; self.encoded_len()];
-          copy(&mut dst);
-          writer.write_all(&dst)
-        }
-      }
-    }
-    .map(|_| encoded_len)
-  }
-
-  #[cfg(feature = "async")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-  async fn encode_to_async_writer<W: futures::io::AsyncWrite + Send + Unpin>(
-    &self,
-    writer: &mut W,
-  ) -> std::io::Result<usize> {
-    use futures::AsyncWriteExt;
-
-    let len = self.encoded_len();
-    match &self.kind {
-      Kind::Ip(addr) => match addr {
-        IpAddr::V4(addr) => {
-          let mut dst = [0; MIN_ENCODED_LEN];
-          dst[0] = 4;
-          dst[1..5].copy_from_slice(&addr.octets());
-          dst[5..MIN_ENCODED_LEN].copy_from_slice(&self.port.to_be_bytes());
-          writer.write_all(&dst).await
-        }
-        IpAddr::V6(addr) => {
-          let mut dst = [0; V6_ENCODED_LEN];
-          dst[0] = 6;
-          dst[1..17].copy_from_slice(&addr.octets());
-          dst[17..V6_ENCODED_LEN].copy_from_slice(&self.port.to_be_bytes());
-          writer.write_all(&dst).await
-        }
-      },
-      Kind::Domain(name) => {
-        let encoded_len = self.encoded_len();
-        let copy = |dst: &mut [u8]| {
-          let mut cur = 0;
-          dst[cur] = 0;
-          cur += TAG_SIZE;
-          let safe = name.fqdn_str();
-          dst[cur] = safe.len() as u8;
-          cur += DOMAIN_LEN_SIZE;
-          dst[cur..cur + safe.len()].copy_from_slice(safe.as_bytes());
-          cur += safe.len();
-          dst[cur..cur + PORT_SIZE].copy_from_slice(&self.port.to_be_bytes());
-        };
-        if encoded_len < INLINE {
-          let mut dst = [0; INLINE];
-          copy(&mut dst[..encoded_len]);
-          writer.write_all(&dst[..encoded_len]).await
-        } else {
-          let mut dst = vec![0; len];
-          copy(&mut dst);
-          writer.write_all(&dst).await
-        }
-      }
-    }
-    .map(|_| len)
-  }
-
-  fn encoded_len(&self) -> usize {
-    encoded_len(self)
-  }
-
-  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
-  where
-    Self: Sized,
-  {
-    if src.len() < TAG_SIZE + DOMAIN_LEN_SIZE {
-      return Err(Self::Error::Corrupted("corrupted address"));
-    }
-
-    let mut cur = 0;
-    let tag = src[0];
-    cur += TAG_SIZE;
-
-    match tag {
-      0 => {
-        let len = src[cur] as usize;
-        cur += DOMAIN_LEN_SIZE;
-        if src.len() < cur + len + PORT_SIZE {
-          return Err(Self::Error::Corrupted("corrupted address"));
-        }
-
-        let s = core::str::from_utf8(&src[cur..cur + len])?;
-        cur += len;
-        let port = u16::from_be_bytes([src[cur], src[cur + 1]]);
-        cur += 2;
-
-        Self::try_from((s, port))
-          .map(|addr| (cur, addr))
-          .map_err(Into::into)
-      }
-      4 => {
-        if src.len() < cur + V4_SIZE + PORT_SIZE {
-          return Err(Self::Error::Corrupted("corrupted address"));
-        }
-
-        let ip = Ipv4Addr::new(src[cur], src[cur + 1], src[cur + 2], src[cur + 3]);
-        let port = u16::from_be_bytes([src[cur + V4_SIZE], src[cur + V4_SIZE + 1]]);
-        Ok((MIN_ENCODED_LEN, SocketAddr::from((ip, port)).into()))
-      }
-      6 => {
-        if src.len() < cur + V6_SIZE + PORT_SIZE {
-          return Err(Self::Error::Corrupted("corrupted address"));
-        }
-
-        let mut buf = [0u8; V6_SIZE];
-        buf.copy_from_slice(&src[cur..cur + V6_SIZE]);
-        let ip = Ipv6Addr::from(buf);
-        let port = u16::from_be_bytes([src[cur + V6_SIZE], src[cur + V6_SIZE + 1]]);
-        Ok((V6_ENCODED_LEN, SocketAddr::from((ip, port)).into()))
-      }
-      val => Err(Self::Error::UnknownAddressTag(val)),
-    }
-  }
-
-  #[cfg(feature = "std")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<(usize, Self)>
-  where
-    Self: Sized,
-  {
-    let mut buf = [0u8; MIN_ENCODED_LEN];
-    reader.read_exact(&mut buf)?;
-    match buf[0] {
-      0 => {
-        const READED: usize = 5;
-
-        let len = buf[1] as usize;
-        let remaining = len + PORT_SIZE - READED;
-        let addr_len = remaining + READED;
-        if addr_len < INLINE {
-          let mut domain = [0; INLINE];
-          domain[..READED].copy_from_slice(&buf[2..]);
-          reader.read_exact(&mut domain[READED..READED + remaining])?;
-          let src = core::str::from_utf8(&domain[..addr_len - PORT_SIZE]).map_err(invalid_data)?;
-          let port = u16::from_be_bytes([
-            domain[addr_len - PORT_SIZE],
-            domain[addr_len - PORT_SIZE + 1],
-          ]);
-          Self::try_from((src, port)).map_err(invalid_data)
-        } else {
-          let mut addr = vec![0; addr_len];
-          addr[..READED].copy_from_slice(&buf[2..]);
-          reader.read_exact(&mut addr[READED..])?;
-          let src = core::str::from_utf8(&addr[..addr_len - PORT_SIZE]).map_err(invalid_data)?;
-          let port =
-            u16::from_be_bytes([addr[addr_len - PORT_SIZE], addr[addr_len - PORT_SIZE + 1]]);
-          Self::try_from((src, port)).map_err(invalid_data)
-        }
-        .map(|a| (MIN_ENCODED_LEN + remaining, a))
-      }
-      4 => Ok((
-        MIN_ENCODED_LEN,
-        Self {
-          kind: Kind::Ip(IpAddr::V4(Ipv4Addr::new(buf[1], buf[2], buf[3], buf[4]))),
-          port: u16::from_be_bytes([buf[5], buf[6]]),
-        },
-      )),
-      6 => {
-        let mut remaining = [0u8; V6_ENCODED_LEN - MIN_ENCODED_LEN];
-        reader.read_exact(&mut remaining)?;
-        let mut ipv6 = [0; V6_SIZE];
-        ipv6[..6].copy_from_slice(&buf[1..]);
-        ipv6[6..].copy_from_slice(&remaining[..V6_ENCODED_LEN - MIN_ENCODED_LEN - 2]);
-        Ok((
-          V6_ENCODED_LEN,
-          Self {
-            kind: Kind::Ip(IpAddr::V6(Ipv6Addr::from(ipv6))),
-            port: u16::from_be_bytes([
-              remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 2],
-              remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 1],
-            ]),
-          },
-        ))
-      }
-      t => Err(invalid_data(Self::Error::UnknownAddressTag(t))),
-    }
-  }
-
-  #[cfg(feature = "async")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-  async fn decode_from_async_reader<R: futures::io::AsyncRead + Send + Unpin>(
-    reader: &mut R,
-  ) -> std::io::Result<(usize, Self)>
-  where
-    Self: Sized,
-  {
-    use futures::AsyncReadExt;
-
-    let mut buf = [0u8; MIN_ENCODED_LEN];
-    reader.read_exact(&mut buf).await?;
-    match buf[0] {
-      0 => {
-        const READED: usize = 5;
-        let len = buf[1] as usize;
-        let remaining = len + PORT_SIZE - READED;
-        let addr_len = remaining + READED;
-        if addr_len < INLINE {
-          let mut domain = [0; INLINE];
-          domain[..READED].copy_from_slice(&buf[2..]);
-          reader
-            .read_exact(&mut domain[READED..READED + remaining])
-            .await?;
-          let src = core::str::from_utf8(&domain[..addr_len - PORT_SIZE]).map_err(invalid_data)?;
-          let port = u16::from_be_bytes([
-            domain[addr_len - PORT_SIZE],
-            domain[addr_len - PORT_SIZE + 1],
-          ]);
-          Self::try_from((src, port)).map_err(invalid_data)
-        } else {
-          let mut addr = vec![0; addr_len];
-          addr[..READED].copy_from_slice(&buf[2..]);
-          reader.read_exact(&mut addr[READED..]).await?;
-          let src = core::str::from_utf8(&addr[..addr_len - PORT_SIZE]).map_err(invalid_data)?;
-          let port =
-            u16::from_be_bytes([addr[addr_len - PORT_SIZE], addr[addr_len - PORT_SIZE + 1]]);
-          Self::try_from((src, port)).map_err(invalid_data)
-        }
-        .map(|a| (MIN_ENCODED_LEN + remaining, a))
-      }
-      4 => Ok((
-        MIN_ENCODED_LEN,
-        Self {
-          kind: Kind::Ip(IpAddr::V4(Ipv4Addr::new(buf[1], buf[2], buf[3], buf[4]))),
-          port: u16::from_be_bytes([buf[5], buf[6]]),
-        },
-      )),
-      6 => {
-        let mut remaining = [0u8; V6_ENCODED_LEN - MIN_ENCODED_LEN];
-        reader.read_exact(&mut remaining).await?;
-        let mut ipv6 = [0; V6_SIZE];
-        ipv6[..6].copy_from_slice(&buf[1..]);
-        ipv6[6..].copy_from_slice(&remaining[..V6_ENCODED_LEN - MIN_ENCODED_LEN - 2]);
-        Ok((
-          V6_ENCODED_LEN,
-          Self {
-            kind: Kind::Ip(IpAddr::V6(Ipv6Addr::from(ipv6))),
-            port: u16::from_be_bytes([
-              remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 2],
-              remaining[V6_ENCODED_LEN - MIN_ENCODED_LEN - 1],
-            ]),
-          },
-        ))
-      }
-      t => Err(invalid_data(Self::Error::UnknownAddressTag(t))),
-    }
-  }
-}
-
-impl cheap_clone::CheapClone for NodeAddress {}
-
-#[cfg(any(feature = "rkyv", feature = "transformable"))]
-fn encoded_len(this: &NodeAddress) -> usize {
-  match &this.kind {
-    Kind::Ip(addr) => match addr {
-      IpAddr::V4(_) => TAG_SIZE + V4_SIZE + PORT_SIZE,
-      IpAddr::V6(_) => TAG_SIZE + V6_SIZE + PORT_SIZE,
-    },
-    Kind::Domain(name) => TAG_SIZE + DOMAIN_LEN_SIZE + name.fqdn_str().len() + PORT_SIZE,
-  }
-}
+impl cheap_clone::CheapClone for HostAddr {}
 
 #[cfg(test)]
 mod tests {
+  use core::net::{Ipv4Addr, Ipv6Addr};
+
   use super::*;
   use rand::{distr::Alphanumeric, rng, Rng, RngCore};
 
-  impl NodeAddress {
+  impl HostAddr {
     fn random_v4_address() -> Self {
       // create a random ipv4 address
       let mut addr = [0u8; 4];
@@ -701,14 +323,15 @@ mod tests {
 
   #[test]
   fn test_basic() {
-    let addr = NodeAddress::from((IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080));
-    let domain = NodeAddress::try_from(String::from("google.com:8080")).unwrap();
-    let domain2 = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
+    let addr = HostAddr::from((IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080));
+    let domain = HostAddr::try_from(String::from("google.com:8080")).unwrap();
+    let domain2 = HostAddr::try_from(("127.0.0.1", 8080)).unwrap();
     assert!(addr.kind.partial_cmp(&domain2.kind) == Some(core::cmp::Ordering::Equal));
     assert!(addr.cmp(&domain2) == core::cmp::Ordering::Equal);
     println!("{}", addr);
     println!("{}", domain);
     assert!(addr.domain().is_none());
+    assert!(addr.fqdn().is_none());
     assert!(addr.ip().is_some());
     assert!(domain.ip().is_none());
     assert!(domain.domain().is_some());
@@ -716,18 +339,18 @@ mod tests {
 
   #[test]
   fn test_ord() {
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(63);
+    let v4 = HostAddr::random_v4_address();
+    let v6 = HostAddr::random_v6_address();
+    let domain = HostAddr::random_domain_address(32);
+    let domain2 = HostAddr::random_domain_address(63);
     let mut vec = [v4, v6, domain, domain2];
     vec.sort();
     println!("{:?}", vec);
 
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(63);
+    let v4 = HostAddr::random_v4_address();
+    let v6 = HostAddr::random_v6_address();
+    let domain = HostAddr::random_domain_address(32);
+    let domain2 = HostAddr::random_domain_address(63);
 
     let mut v4 = v4.with_port(200);
     assert_eq!(v4.port(), 200);
@@ -755,227 +378,29 @@ mod tests {
     let mut vec = [v4, v6, domain, domain2];
     vec.sort();
 
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
+    let v4 = HostAddr::random_v4_address();
+    let v6 = HostAddr::random_v6_address();
+    let domain = HostAddr::random_domain_address(32);
     assert!(v4 < domain);
     assert!(v6 < domain);
 
     assert_eq!(v4.partial_cmp(&domain), Some(core::cmp::Ordering::Less));
   }
 
-  #[cfg(feature = "transformable")]
-  #[test]
-  fn test_transformable() {
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(63);
-
-    let mut buf = vec![0; v4.encoded_len()];
-    v4.encode(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode(&buf).unwrap();
-    assert_eq!(size, v4.encoded_len());
-    assert_eq!(decoded, v4);
-
-    let mut buf = vec![0; v6.encoded_len()];
-    v6.encode(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode(&buf).unwrap();
-    assert_eq!(size, v6.encoded_len());
-    assert_eq!(decoded, v6);
-
-    let mut buf = vec![0; domain.encoded_len()];
-    domain.encode(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode(&buf).unwrap();
-    assert_eq!(size, domain.encoded_len());
-    assert_eq!(decoded, domain);
-
-    let mut buf = vec![0; domain2.encoded_len()];
-    domain2.encode(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode(&buf).unwrap();
-    assert_eq!(size, domain2.encoded_len());
-    assert_eq!(decoded, domain2);
-  }
-
-  #[cfg(feature = "transformable")]
-  #[test]
-  fn test_transformable_io() {
-    use std::io::Cursor;
-
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(63);
-
-    let mut buf = Vec::new();
-    v4.encode_to_writer(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf.as_slice()).unwrap();
-    assert_eq!(size, v4.encoded_len());
-    assert_eq!(decoded, v4);
-
-    let mut buf = Vec::new();
-    v6.encode_to_writer(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf).unwrap();
-    assert_eq!(size, v6.encoded_len());
-    assert_eq!(decoded, v6);
-
-    let mut buf = Vec::new();
-    domain.encode_to_writer(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf).unwrap();
-    assert_eq!(size, domain.encoded_len());
-    assert_eq!(decoded, domain);
-
-    let mut buf = vec![0; v4.encoded_len()];
-    v4.encode(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf).unwrap();
-    assert_eq!(size, v4.encoded_len());
-    assert_eq!(decoded, v4);
-
-    let mut buf = vec![0; v6.encoded_len()];
-    v6.encode(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf).unwrap();
-    assert_eq!(size, v6.encoded_len());
-    assert_eq!(decoded, v6);
-
-    let mut buf = vec![0; domain.encoded_len()];
-    domain.encode(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf).unwrap();
-    assert_eq!(size, domain.encoded_len());
-    assert_eq!(decoded, domain);
-
-    let mut buf = vec![0; domain2.encoded_len()];
-    domain2.encode(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf).unwrap();
-    assert_eq!(size, domain2.encoded_len());
-    assert_eq!(decoded, domain2);
-
-    let mut buf = Vec::new();
-    v4.encode_to_writer(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf.as_slice()).unwrap();
-    assert_eq!(size, v4.encoded_len());
-    assert_eq!(decoded, v4);
-
-    let mut buf = Vec::new();
-    v6.encode_to_writer(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf.as_slice()).unwrap();
-    assert_eq!(size, v6.encoded_len());
-    assert_eq!(decoded, v6);
-
-    let mut buf = Vec::new();
-    domain.encode_to_writer(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf.as_slice()).unwrap();
-    assert_eq!(size, domain.encoded_len());
-    assert_eq!(decoded, domain);
-
-    let mut buf = Vec::new();
-    domain2.encode_to_writer(&mut buf).unwrap();
-    let (size, decoded) = NodeAddress::decode_from_reader(&mut buf.as_slice()).unwrap();
-    assert_eq!(size, domain2.encoded_len());
-    assert_eq!(decoded, domain2);
-  }
-
-  #[cfg(all(feature = "async", feature = "transformable"))]
-  #[tokio::test]
-  async fn test_transformable_async_io() {
-    use futures::io::Cursor;
-
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(63);
-
-    let mut buf = Vec::new();
-    v4.encode_to_async_writer(&mut buf).await.unwrap();
-    let (size, decoded) = NodeAddress::decode_from_async_reader(&mut buf.as_slice())
-      .await
-      .unwrap();
-    assert_eq!(size, v4.encoded_len());
-    assert_eq!(decoded, v4);
-
-    let mut buf = Vec::new();
-    v6.encode_to_async_writer(&mut buf).await.unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_async_reader(&mut buf)
-      .await
-      .unwrap();
-    assert_eq!(size, v6.encoded_len());
-    assert_eq!(decoded, v6);
-
-    let mut buf = Vec::new();
-    domain.encode_to_async_writer(&mut buf).await.unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_async_reader(&mut buf)
-      .await
-      .unwrap();
-    assert_eq!(size, domain.encoded_len());
-    assert_eq!(decoded, domain);
-
-    let mut buf = Vec::new();
-    domain2.encode_to_async_writer(&mut buf).await.unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_async_reader(&mut buf)
-      .await
-      .unwrap();
-    assert_eq!(size, domain2.encoded_len());
-    assert_eq!(decoded, domain2);
-
-    let mut buf = vec![0; v4.encoded_len()];
-    v4.encode(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_async_reader(&mut buf)
-      .await
-      .unwrap();
-    assert_eq!(size, v4.encoded_len());
-    assert_eq!(decoded, v4);
-
-    let mut buf = vec![0; v6.encoded_len()];
-    v6.encode(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_async_reader(&mut buf)
-      .await
-      .unwrap();
-    assert_eq!(size, v6.encoded_len());
-    assert_eq!(decoded, v6);
-
-    let mut buf = vec![0; domain.encoded_len()];
-    domain.encode(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_async_reader(&mut buf)
-      .await
-      .unwrap();
-    assert_eq!(size, domain.encoded_len());
-    assert_eq!(decoded, domain);
-
-    let mut buf = vec![0; domain2.encoded_len()];
-    domain2.encode(&mut buf).unwrap();
-    let mut buf = Cursor::new(buf);
-    let (size, decoded) = NodeAddress::decode_from_async_reader(&mut buf)
-      .await
-      .unwrap();
-    assert_eq!(size, domain2.encoded_len());
-    assert_eq!(decoded, domain2);
-  }
-
   #[cfg(feature = "serde")]
   #[test]
   fn test_serde() {
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(63);
+    let v4 = HostAddr::random_v4_address();
+    let v6 = HostAddr::random_v6_address();
+    let domain = HostAddr::random_domain_address(63);
 
     let v4_str = serde_json::to_string(&v4).unwrap();
     let v6_str = serde_json::to_string(&v6).unwrap();
     let domain_str = serde_json::to_string(&domain).unwrap();
 
-    let v4_dec: NodeAddress = serde_json::from_str(&v4_str).unwrap();
-    let v6_dec: NodeAddress = serde_json::from_str(&v6_str).unwrap();
-    let domain_dec: NodeAddress = serde_json::from_str(&domain_str).unwrap();
+    let v4_dec: HostAddr = serde_json::from_str(&v4_str).unwrap();
+    let v6_dec: HostAddr = serde_json::from_str(&v6_str).unwrap();
+    let domain_dec: HostAddr = serde_json::from_str(&domain_str).unwrap();
 
     assert_eq!(v4, v4_dec);
     assert_eq!(v6, v6_dec);
@@ -984,7 +409,23 @@ mod tests {
 
   #[test]
   fn test_constructor() {
-    let a = NodeAddress::from_domain_static("www.example.com", 80).unwrap();
+    let a = HostAddr::from_domain("www.example.com", 80).unwrap();
     assert_eq!(a.domain().unwrap(), "www.example.com");
+    assert_eq!(a.port(), 80);
+    assert_eq!(a.fqdn().unwrap(), "www.example.com.");
+
+    let a = HostAddr::try_from(("www.example.com", 80)).unwrap();
+    assert_eq!(a.domain().unwrap(), "www.example.com");
+    assert_eq!(a.port(), 80);
+    assert_eq!(a.fqdn().unwrap(), "www.example.com.");
+  }
+
+  #[test]
+  fn negative_test() {
+    let p = HostAddr::try_from("127.0.0.1");
+    assert!(matches!(p, Err(ParseHostAddrError::PortNotFound)));
+
+    let p = HostAddr::try_from("www.example.com");
+    assert!(matches!(p, Err(ParseHostAddrError::PortNotFound)));
   }
 }
