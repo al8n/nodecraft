@@ -1,6 +1,7 @@
 use core::fmt;
 use std::borrow::Cow;
 
+use idna::{domain_to_ascii_cow, AsciiDenyList};
 use smol_str03::SmolStr;
 
 /// A type which encapsulates a string that is a syntactically domain name.
@@ -107,7 +108,7 @@ impl Domain {
       } else {
         domain
       };
-      let valid_domain = idna::domain_to_ascii_cow(without_dot, idna::AsciiDenyList::EMPTY)
+      let valid_domain = domain_to_ascii_cow(without_dot, AsciiDenyList::EMPTY)
         .map_err(|_| ParseDomainError)?;
 
       if domain.ends_with(b".") && matches!(valid_domain, Cow::Borrowed(_)) {
