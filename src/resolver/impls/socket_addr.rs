@@ -88,3 +88,14 @@ mod resolver {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[cfg(feature = "agnostic")]
+  #[test]
+  fn resolver() {
+    let _ = SocketAddrResolver::<agnostic::tokio::TokioRuntime>::default();
+  }
+}
