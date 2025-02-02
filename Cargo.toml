@@ -16,12 +16,11 @@ rust-version = "1.81.0"
 [features]
 default = ["std"]
 full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
-alloc = ["smol_str03", "cheap-clone/alloc"]
+alloc = ["smol_str03", "cheap-clone/alloc", "idna/alloc"]
 std = [
-  "alloc",
+  "idna/std",
   "cheap-clone/std",
-  "smol_str03?/std",
-  "smol_str02?/std",
+  "smol_str03/std",
   "thiserror/std",
   "serde?/std",
   "humantime-serde",
@@ -55,15 +54,13 @@ dnssec-openssl = ["dns", "agnostic/dnssec-openssl"]
 dnssec-ring = ["dnssec", "agnostic/dnssec-ring"]
 dnssec = ["dns", "agnostic/dnssec"]
 
-smol_str02 = ["dep:smol_str02", "alloc", "cheap-clone/smol_str02"]
-smol_str03 = ["dep:smol_str03", "alloc", "cheap-clone/smol_str03", "rkyv?/smol_str-0_3"]
+smol_str03 = ["dep:smol_str03", "cheap-clone/smol_str03", "rkyv?/smol_str-0_3"]
 
 # enable node address resolver
 resolver = ["async", "agnostic/net", "crossbeam-skiplist/default", "std"]
 
 serde = [
   "dep:serde",
-  "smol_str02?/serde",
   "smol_str03?/serde",
   "humantime-serde",
   "hickory-resolver?/serde-config",
@@ -74,6 +71,7 @@ rkyv = ["dep:rkyv"]
 tracing = ["dep:tracing"]
 
 [dependencies]
+idna = { version = "1", optional = true, default-features = false }
 cheap-clone = { version = "0.2", default-features = false, features = [
   "smol_str03",
 ] }
@@ -87,7 +85,6 @@ serde = { version = "1", default-features = false, optional = true, features = [
 ] }
 humantime-serde = { version = "1", default-features = false, optional = true }
 
-smol_str02 = { package = "smol_str", version = "0.2", default-features = false, optional = true }
 smol_str03 = { package = "smol_str", version = "0.3", default-features = false, optional = true }
 
 hickory-resolver = { version = "0.24", default-features = false, optional = true }

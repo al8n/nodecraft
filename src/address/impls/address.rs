@@ -4,7 +4,7 @@ use std::{
 };
 
 mod domain;
-pub use domain::{Domain, PraseDomainError};
+pub use domain::{Domain, ParseDomainError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -38,21 +38,21 @@ impl Ord for Kind {
   }
 }
 
-/// An error which can be returned when parsing a [`NodeAddress`].
+/// An error which can be returned when parsing a [`HostAddr`].
 #[derive(Debug, thiserror::Error)]
-pub enum ParseNodeAddressError {
+pub enum ParseHostAddrError {
   /// Returned if the provided str is missing port.
   #[error("address is missing port")]
   PortNotFound,
   /// Returned if the provided str is not a valid address.
   #[error(transparent)]
-  Domain(#[from] PraseDomainError),
+  Domain(#[from] ParseDomainError),
   /// Returned if the provided str is not a valid port.
   #[error("invalid port: {0}")]
   Port(#[from] core::num::ParseIntError),
 }
 
-/// A node address which supports both `domain:port` and socket address.
+/// A host address which supports both `domain:port` and socket address.
 ///
 /// e.g. Valid format
 /// 1. `www.example.com:8080`
@@ -67,18 +67,18 @@ pub enum ParseNodeAddressError {
   feature = "rkyv",
   rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
-pub struct NodeAddress {
+pub struct HostAddr {
   pub(crate) kind: Kind,
   pub(crate) port: u16,
 }
 
-impl PartialOrd for NodeAddress {
+impl PartialOrd for HostAddr {
   fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
     Some(self.cmp(other))
   }
 }
 
-impl Ord for NodeAddress {
+impl Ord for HostAddr {
   fn cmp(&self, other: &Self) -> core::cmp::Ordering {
     match self.kind.cmp(&other.kind) {
       core::cmp::Ordering::Equal => self.port.cmp(&other.port),
@@ -87,7 +87,7 @@ impl Ord for NodeAddress {
   }
 }
 
-impl core::fmt::Display for NodeAddress {
+impl core::fmt::Display for HostAddr {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match &self.kind {
       Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
@@ -97,7 +97,7 @@ impl core::fmt::Display for NodeAddress {
 }
 
 #[cfg(feature = "serde")]
-impl serde::Serialize for NodeAddress {
+impl serde::Serialize for HostAddr {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
@@ -115,7 +115,7 @@ impl serde::Serialize for NodeAddress {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for NodeAddress {
+impl<'de> serde::Deserialize<'de> for HostAddr {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
@@ -125,7 +125,7 @@ impl<'de> serde::Deserialize<'de> for NodeAddress {
   }
 }
 
-impl From<SocketAddr> for NodeAddress {
+impl From<SocketAddr> for HostAddr {
   fn from(addr: SocketAddr) -> Self {
     Self {
       kind: Kind::Ip(addr.ip()),
@@ -134,7 +134,7 @@ impl From<SocketAddr> for NodeAddress {
   }
 }
 
-impl From<(IpAddr, u16)> for NodeAddress {
+impl From<(IpAddr, u16)> for HostAddr {
   fn from(addr: (IpAddr, u16)) -> Self {
     Self {
       kind: Kind::Ip(addr.0),
@@ -143,24 +143,24 @@ impl From<(IpAddr, u16)> for NodeAddress {
   }
 }
 
-impl TryFrom<String> for NodeAddress {
-  type Error = ParseNodeAddressError;
+impl TryFrom<String> for HostAddr {
+  type Error = ParseHostAddrError;
 
   fn try_from(s: String) -> Result<Self, Self::Error> {
     Self::from_str(s.as_str())
   }
 }
 
-impl TryFrom<&str> for NodeAddress {
-  type Error = ParseNodeAddressError;
+impl TryFrom<&str> for HostAddr {
+  type Error = ParseHostAddrError;
 
   fn try_from(value: &str) -> Result<Self, Self::Error> {
     Self::from_str(value)
   }
 }
 
-impl FromStr for NodeAddress {
-  type Err = ParseNodeAddressError;
+impl FromStr for HostAddr {
+  type Err = ParseHostAddrError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let res: Result<SocketAddr, _> = s.parse();
@@ -169,10 +169,10 @@ impl FromStr for NodeAddress {
       Err(_) => {
         let res: Result<IpAddr, _> = s.parse();
         match res {
-          Ok(_) => Err(ParseNodeAddressError::PortNotFound),
+          Ok(_) => Err(ParseHostAddrError::PortNotFound),
           Err(_) => {
             let Some((domain, port)) = s.rsplit_once(':') else {
-              return Err(ParseNodeAddressError::PortNotFound);
+              return Err(ParseHostAddrError::PortNotFound);
             };
 
             let port = port.parse()?;
@@ -189,8 +189,8 @@ impl FromStr for NodeAddress {
   }
 }
 
-impl TryFrom<(&str, u16)> for NodeAddress {
-  type Error = ParseNodeAddressError;
+impl TryFrom<(&str, u16)> for HostAddr {
+  type Error = ParseHostAddrError;
 
   fn try_from((domain, port): (&str, u16)) -> Result<Self, Self::Error> {
     let res: Result<IpAddr, _> = domain.parse();
@@ -209,9 +209,9 @@ impl TryFrom<(&str, u16)> for NodeAddress {
   }
 }
 
-impl NodeAddress {
+impl HostAddr {
   /// Create a new address from domain and port
-  pub fn from_domain(s: &str, port: u16) -> Result<Self, ParseNodeAddressError> {
+  pub fn from_domain(s: &str, port: u16) -> Result<Self, ParseHostAddrError> {
     Domain::try_from(s)
       .map(|d| Self {
         kind: Kind::Domain(d),
@@ -265,7 +265,7 @@ impl NodeAddress {
   }
 }
 
-impl cheap_clone::CheapClone for NodeAddress {}
+impl cheap_clone::CheapClone for HostAddr {}
 
 #[cfg(test)]
 mod tests {
@@ -274,7 +274,7 @@ mod tests {
   use super::*;
   use rand::{distr::Alphanumeric, rng, Rng, RngCore};
 
-  impl NodeAddress {
+  impl HostAddr {
     fn random_v4_address() -> Self {
       // create a random ipv4 address
       let mut addr = [0u8; 4];
@@ -323,9 +323,9 @@ mod tests {
 
   #[test]
   fn test_basic() {
-    let addr = NodeAddress::from((IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080));
-    let domain = NodeAddress::try_from(String::from("google.com:8080")).unwrap();
-    let domain2 = NodeAddress::try_from(("127.0.0.1", 8080)).unwrap();
+    let addr = HostAddr::from((IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080));
+    let domain = HostAddr::try_from(String::from("google.com:8080")).unwrap();
+    let domain2 = HostAddr::try_from(("127.0.0.1", 8080)).unwrap();
     assert!(addr.kind.partial_cmp(&domain2.kind) == Some(core::cmp::Ordering::Equal));
     assert!(addr.cmp(&domain2) == core::cmp::Ordering::Equal);
     println!("{}", addr);
@@ -339,18 +339,18 @@ mod tests {
 
   #[test]
   fn test_ord() {
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(63);
+    let v4 = HostAddr::random_v4_address();
+    let v6 = HostAddr::random_v6_address();
+    let domain = HostAddr::random_domain_address(32);
+    let domain2 = HostAddr::random_domain_address(63);
     let mut vec = [v4, v6, domain, domain2];
     vec.sort();
     println!("{:?}", vec);
 
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
-    let domain2 = NodeAddress::random_domain_address(63);
+    let v4 = HostAddr::random_v4_address();
+    let v6 = HostAddr::random_v6_address();
+    let domain = HostAddr::random_domain_address(32);
+    let domain2 = HostAddr::random_domain_address(63);
 
     let mut v4 = v4.with_port(200);
     assert_eq!(v4.port(), 200);
@@ -378,9 +378,9 @@ mod tests {
     let mut vec = [v4, v6, domain, domain2];
     vec.sort();
 
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(32);
+    let v4 = HostAddr::random_v4_address();
+    let v6 = HostAddr::random_v6_address();
+    let domain = HostAddr::random_domain_address(32);
     assert!(v4 < domain);
     assert!(v6 < domain);
 
@@ -390,17 +390,17 @@ mod tests {
   #[cfg(feature = "serde")]
   #[test]
   fn test_serde() {
-    let v4 = NodeAddress::random_v4_address();
-    let v6 = NodeAddress::random_v6_address();
-    let domain = NodeAddress::random_domain_address(63);
+    let v4 = HostAddr::random_v4_address();
+    let v6 = HostAddr::random_v6_address();
+    let domain = HostAddr::random_domain_address(63);
 
     let v4_str = serde_json::to_string(&v4).unwrap();
     let v6_str = serde_json::to_string(&v6).unwrap();
     let domain_str = serde_json::to_string(&domain).unwrap();
 
-    let v4_dec: NodeAddress = serde_json::from_str(&v4_str).unwrap();
-    let v6_dec: NodeAddress = serde_json::from_str(&v6_str).unwrap();
-    let domain_dec: NodeAddress = serde_json::from_str(&domain_str).unwrap();
+    let v4_dec: HostAddr = serde_json::from_str(&v4_str).unwrap();
+    let v6_dec: HostAddr = serde_json::from_str(&v6_str).unwrap();
+    let domain_dec: HostAddr = serde_json::from_str(&domain_str).unwrap();
 
     assert_eq!(v4, v4_dec);
     assert_eq!(v6, v6_dec);
@@ -409,12 +409,12 @@ mod tests {
 
   #[test]
   fn test_constructor() {
-    let a = NodeAddress::from_domain("www.example.com", 80).unwrap();
+    let a = HostAddr::from_domain("www.example.com", 80).unwrap();
     assert_eq!(a.domain().unwrap(), "www.example.com");
     assert_eq!(a.port(), 80);
     assert_eq!(a.fqdn().unwrap(), "www.example.com.");
 
-    let a = NodeAddress::try_from(("www.example.com", 80)).unwrap();
+    let a = HostAddr::try_from(("www.example.com", 80)).unwrap();
     assert_eq!(a.domain().unwrap(), "www.example.com");
     assert_eq!(a.port(), 80);
     assert_eq!(a.fqdn().unwrap(), "www.example.com.");
