@@ -20,7 +20,7 @@ Crafting seamless node operations for distributed systems, which provides founda
 
 ```toml
 [dependencies]
-nodecraft = "0.6"
+nodecraft = "0.7"
 ```
 
 ## Examples
