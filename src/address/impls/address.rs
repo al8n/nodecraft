@@ -5,6 +5,7 @@ use std::{
 
 mod domain;
 pub use domain::{Domain, ParseDomainError};
+pub use either::Either;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -272,6 +273,15 @@ impl HostAddr {
     self.port = port;
     self
   }
+
+  /// Consumes the host addr and returns the inner data
+  #[inline]
+  pub fn into_inner(self) -> Either<SocketAddr, (u16, Domain)> {
+    match self.kind {
+      Kind::Ip(addr) => Either::Left(SocketAddr::new(addr, self.port)),
+      Kind::Domain(name) => Either::Right((self.port, name)),
+    }
+  }
 }
 
 impl cheap_clone::CheapClone for HostAddr {}
@@ -394,6 +404,7 @@ mod tests {
     assert!(v6 < domain);
 
     assert_eq!(v4.partial_cmp(&domain), Some(core::cmp::Ordering::Less));
+    assert!(matches!(v4.into_inner(), Either::Left(_)));
   }
 
   #[cfg(feature = "serde")]
@@ -427,6 +438,7 @@ mod tests {
     assert_eq!(a.domain().unwrap(), "www.example.com");
     assert_eq!(a.port(), 80);
     assert_eq!(a.fqdn().unwrap(), "www.example.com.");
+    assert!(matches!(a.into_inner(), Either::Right(_)));
   }
 
   #[test]
