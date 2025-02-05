@@ -143,6 +143,15 @@ impl From<(IpAddr, u16)> for HostAddr {
   }
 }
 
+impl From<(Domain, u16)> for HostAddr {
+  fn from(addr: (Domain, u16)) -> Self {
+    Self {
+      kind: Kind::Domain(addr.0),
+      port: addr.1,
+    }
+  }
+}
+
 impl TryFrom<String> for HostAddr {
   type Error = ParseHostAddrError;
 

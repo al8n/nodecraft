@@ -245,9 +245,34 @@ const _: () = {
   }
 };
 
+#[cfg(feature = "arbitrary")]
+const _: () = {
+  use arbitrary::{Arbitrary, Unstructured};
+
+  impl<'a, I: Arbitrary<'a>, A: Arbitrary<'a>> Arbitrary<'a> for Node<I, A> {
+    #[inline]
+    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+      Ok(Self::new(I::arbitrary(u)?, A::arbitrary(u)?))
+    }
+  }
+};
+
+#[cfg(feature = "quickcheck")]
+const _: () = {
+  use quickcheck::{Arbitrary, Gen};
+
+  impl<I: Arbitrary, A: Arbitrary> Arbitrary for Node<I, A> {
+    #[inline]
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self::new(I::arbitrary(g), A::arbitrary(g))
+    }
+  }
+};
+
 #[cfg(test)]
 mod tests {
   use super::*;
+  use arbitrary::{Arbitrary, Unstructured};
   use rand::distr::Alphanumeric;
   use smol_str03::SmolStr;
 
@@ -266,21 +291,25 @@ mod tests {
 
   #[test]
   fn test_node_access() {
-    let mut node = random(10);
-    node.set_id(SmolStr::from("test"));
+    let mut data = vec![0; 1024];
+    rand::fill(&mut data[..]);
+    let mut data = Unstructured::new(&data);
+
+    let mut node = Node::<std::sync::Arc<String>, u64>::arbitrary(&mut data).unwrap();
+    node.set_id(String::from("test").into());
     node.set_address(100);
-    assert_eq!(node.id(), "test");
+    assert_eq!(node.id().as_str(), "test");
     assert_eq!(node.address(), &100);
 
     let node = node
       .cheap_clone()
-      .with_id(SmolStr::from("test2"))
+      .with_id(String::from("test2").into())
       .with_address(200);
-    assert_eq!(node.id(), "test2");
+    assert_eq!(node.id().as_str(), "test2");
     assert_eq!(node.address(), &200);
 
     let (id, address) = node.into_components();
-    assert_eq!(id, "test2");
+    assert_eq!(id.as_str(), "test2");
     assert_eq!(address, 200);
 
     let node = Node::from(("test3", 300));
@@ -301,5 +330,13 @@ mod tests {
     let serialized = serde_json::to_string(&node).unwrap();
     let deserialized: Node<SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(node, deserialized);
+  }
+
+  #[cfg(feature = "serde")]
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_serde(node: Node<String, u64>) -> bool {
+    let serialized = serde_json::to_string(&node).unwrap();
+    let deserialized: Node<String, u64> = serde_json::from_str(&serialized).unwrap();
+    node == deserialized
   }
 }
