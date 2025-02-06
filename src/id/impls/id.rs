@@ -170,6 +170,52 @@ impl<const N: usize> TryFrom<String> for NodeId<N> {
   }
 }
 
+#[cfg(feature = "arbitrary")]
+const _: () = {
+  use arbitrary::{Arbitrary, Unstructured};
+
+  impl<'a, const N: usize> Arbitrary<'a> for NodeId<N> {
+    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+      // Generate a length between 1 and N
+      let len = u.int_in_range(1..=N)?;
+
+      // Generate random chars
+      let mut id = String::with_capacity(len);
+      while id.len() < len {
+        let c = char::arbitrary(u)?;
+        if id.len() + c.len_utf8() <= len {
+          id.push(c);
+        }
+      }
+
+      NodeId::try_from(id).map_err(|_| arbitrary::Error::IncorrectFormat)
+    }
+  }
+};
+
+#[cfg(feature = "quickcheck")]
+const _: () = {
+  use quickcheck::{Arbitrary, Gen};
+
+  impl<const N: usize> Arbitrary for NodeId<N> {
+    fn arbitrary(g: &mut Gen) -> Self {
+      // Generate a length between 1 and N
+      let len = usize::arbitrary(g) % N + 1;
+
+      // Generate random chars
+      let mut id = String::with_capacity(len);
+      while id.len() < len {
+        let c = char::arbitrary(g);
+        if id.len() + c.len_utf8() <= len {
+          id.push(c);
+        }
+      }
+
+      NodeId::try_from(id).unwrap()
+    }
+  }
+};
+
 #[cfg(test)]
 mod tests {
   use core::str::FromStr;
@@ -243,5 +289,13 @@ mod tests {
     let s = serde_json::to_string(&id).unwrap();
     let decoded: NodeId = serde_json::from_str(&s).unwrap();
     assert_eq!(id, decoded);
+  }
+
+  #[cfg(feature = "serde")]
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_serde(node: NodeId) -> bool {
+    let serialized = serde_json::to_string(&node).unwrap();
+    let deserialized: NodeId = serde_json::from_str(&serialized).unwrap();
+    node == deserialized
   }
 }

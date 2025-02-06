@@ -286,6 +286,40 @@ impl HostAddr {
 
 impl cheap_clone::CheapClone for HostAddr {}
 
+#[cfg(feature = "arbitrary")]
+const _: () = {
+  use arbitrary::{Arbitrary, Unstructured};
+
+  impl<'a> Arbitrary<'a> for HostAddr {
+    fn arbitrary(u: &mut Unstructured<'a>) -> core::result::Result<Self, arbitrary::Error> {
+      let kind = u.arbitrary::<u8>()?;
+      match kind % 3 {
+        0 => Ok(HostAddr::from(SocketAddr::arbitrary(u)?)),
+        1 => Ok(HostAddr::from((IpAddr::arbitrary(u)?, u.arbitrary()?))),
+        2 => Ok(HostAddr::from((Domain::arbitrary(u)?, u.arbitrary()?))),
+        _ => unreachable!(),
+      }
+    }
+  }
+};
+
+#[cfg(feature = "quickcheck")]
+const _: () = {
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for HostAddr {
+    fn arbitrary(g: &mut Gen) -> Self {
+      let kind = u8::arbitrary(g);
+      match kind % 3 {
+        0 => HostAddr::from(SocketAddr::arbitrary(g)),
+        1 => HostAddr::from((IpAddr::arbitrary(g), u16::arbitrary(g))),
+        2 => HostAddr::from((Domain::arbitrary(g), u16::arbitrary(g))),
+        _ => unreachable!(),
+      }
+    }
+  }
+};
+
 #[cfg(test)]
 mod tests {
   use core::net::{Ipv4Addr, Ipv6Addr};
@@ -448,5 +482,12 @@ mod tests {
 
     let p = HostAddr::try_from("www.example.com");
     assert!(matches!(p, Err(ParseHostAddrError::PortNotFound)));
+  }
+  #[cfg(feature = "serde")]
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_serde(node: HostAddr) -> bool {
+    let serialized = serde_json::to_string(&node).unwrap();
+    let deserialized: HostAddr = serde_json::from_str(&serialized).unwrap();
+    node == deserialized
   }
 }

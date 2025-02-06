@@ -263,6 +263,160 @@ const fn validate(input: &[u8]) -> Result<(), ParseDomainError> {
   Ok(())
 }
 
+#[cfg(feature = "arbitrary")]
+const _: () = {};
+
+#[cfg(feature = "arbitrary")]
+const _: () = {
+  use arbitrary::{Arbitrary, Result, Unstructured};
+
+  impl<'a> Arbitrary<'a> for Domain {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+      // Generate between 1 and 4 labels
+      let label_count = u.int_in_range(1..=4)?;
+      let mut domain = String::new();
+
+      for i in 0..label_count {
+        if i > 0 {
+          domain.push('.');
+        }
+
+        // Generate label length (1-63)
+        let len = u.int_in_range(1..=63)?;
+
+        // First character can't be hyphen but can be underscore
+        let first_char = if u.arbitrary::<bool>()? {
+          // letter
+          let c = u.int_in_range(0..=51)?;
+          if c < 26 {
+            b'a' + c
+          } else {
+            b'A' + (c - 26)
+          }
+        } else if u.arbitrary::<bool>()? {
+          // number
+          u.int_in_range(b'0'..=b'9')?
+        } else {
+          b'_'
+        } as char;
+
+        domain.push(first_char);
+
+        // Rest of the characters
+        for _ in 1..len {
+          let c = match u.int_in_range(0..=4)? {
+            0 => u.int_in_range(b'a'..=b'z')? as char,
+            1 => u.int_in_range(b'A'..=b'Z')? as char,
+            2 => u.int_in_range(b'0'..=b'9')? as char,
+            3 => '_',
+            _ => {
+              if len > 1 {
+                '-'
+              } else {
+                u.int_in_range(b'a'..=b'z')? as char
+              }
+            }
+          };
+          domain.push(c);
+        }
+
+        // Ensure last char isn't hyphen
+        if domain.ends_with('-') {
+          domain.push('a');
+        }
+      }
+
+      // Ensure last label isn't numeric-only
+      if domain
+        .split('.')
+        .last()
+        .unwrap()
+        .chars()
+        .all(|c| c.is_ascii_digit())
+      {
+        domain.push('x');
+      }
+
+      // Optionally add trailing dot
+      if u.arbitrary::<bool>()? {
+        domain.push('.');
+      }
+
+      Domain::try_from(domain).map_err(|_| arbitrary::Error::IncorrectFormat)
+    }
+  }
+};
+
+#[cfg(feature = "quickcheck")]
+const _: () = {
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for Domain {
+    fn arbitrary(g: &mut Gen) -> Self {
+      let size = (usize::arbitrary(g) % 3) + 1; // 1-3 labels
+
+      let mut domain = String::new();
+      for i in 0..size {
+        if i > 0 {
+          domain.push('.');
+        }
+
+        let len = (usize::arbitrary(g) % 63) + 1;
+        let chars: String = std::iter::from_fn(|| {
+          let r = usize::arbitrary(g) % 64;
+          Some(match r {
+            0..=25 => (b'a' + (r as u8)) as char,
+            26..=51 => (b'A' + (r as u8 - 26)) as char,
+            52..=61 => (b'0' + (r as u8 - 52)) as char,
+            62 => '_',
+            _ => '-',
+          })
+        })
+        .take(len)
+        .collect();
+
+        // Ensure valid first/last chars
+        let mut label = chars;
+        if label.starts_with('-') {
+          label.replace_range(0..1, "a");
+        }
+        if label.ends_with('-') {
+          label.replace_range(label.len() - 1..label.len(), "a");
+        }
+
+        domain.push_str(&label);
+      }
+
+      // Ensure last label isn't numeric-only
+      if domain
+        .split('.')
+        .last()
+        .unwrap()
+        .chars()
+        .all(|c| c.is_ascii_digit())
+      {
+        domain.push('x');
+      }
+
+      // Maybe add trailing dot
+      if bool::arbitrary(g) {
+        domain.push('.');
+      }
+
+      Domain::try_from(domain).unwrap_or_else(|_| Domain::try_from("example.com").unwrap())
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+      let s = self.as_str().to_string();
+      Box::new(
+        s.shrink()
+          .filter(|s| !s.is_empty())
+          .filter_map(|s| Domain::try_from(s).ok()),
+      )
+    }
+  }
+};
+
 #[cfg(test)]
 mod tests {
   use core::str::FromStr;
@@ -408,5 +562,13 @@ mod tests {
     let name = Domain::try_from("测试.中国").unwrap();
     assert_eq!("xn--0zwm56d.xn--fiqs8s", name.as_str());
     assert_eq!("xn--0zwm56d.xn--fiqs8s.", name.fqdn_str());
+  }
+
+  #[cfg(feature = "serde")]
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_serde(node: Domain) -> bool {
+    let serialized = serde_json::to_string(&node).unwrap();
+    let deserialized: Domain = serde_json::from_str(&serialized).unwrap();
+    node == deserialized
   }
 }
