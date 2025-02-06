@@ -114,7 +114,7 @@ impl Domain {
       if domain.ends_with(b".") && matches!(valid_domain, Cow::Borrowed(_)) {
         return Ok(Self(
           core::str::from_utf8(domain)
-            .expect("bytes must be valid utf8")
+            .expect("input must be valid utf8 bytes")
             .into(),
         ));
       }
@@ -130,7 +130,9 @@ impl Domain {
       buf[len] = b'.'; // Add trailing dot
       Ok(Self(
         // SAFETY: We know the input is valid UTF-8 from validation
-        unsafe { core::str::from_utf8_unchecked(&buf[..=len]) }.into(),
+        core::str::from_utf8(&buf[..=len])
+          .expect("input must be valid utf8 bytes")
+          .into(),
       ))
     } else {
       // Consider pre-allocating with capacity
