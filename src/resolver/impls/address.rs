@@ -2,7 +2,7 @@ use core::time::Duration;
 use std::net::SocketAddr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{address::Domain, HostAddr, Kind};
+use crate::{address::Domain, HostAddr};
 
 use crossbeam_skiplist::SkipMap;
 
@@ -64,6 +64,7 @@ mod resolver {
   use super::*;
 
   use agnostic::{net::ToSocketAddrs, RuntimeLite};
+  use either::Either;
 
   /// A resolver which supports both `domain:port` and socket address. However,
   /// it will only use [`ToSocketAddrs`](std::net::ToSocketAddrs)
@@ -111,9 +112,9 @@ mod resolver {
     }
 
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
-      match &address.kind {
-        Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
-        Kind::Domain(name) => {
+      match address.as_inner() {
+        Either::Left(addr) => Ok(addr),
+        Either::Right((port, name)) => {
           // First, check cache
           if let Some(ent) = self.cache.get(name.as_str()) {
             let val = ent.value();
@@ -125,7 +126,6 @@ mod resolver {
           }
 
           // Finally, try to find the socket addr locally
-          let port = address.port;
           let tsafe = name.clone();
 
           let res =
@@ -248,9 +248,9 @@ mod resolver {
     }
 
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
-      match &address.kind {
-        Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
-        Kind::Dns(name) => {
+      match address.as_inner() {
+        Either::Left(addr) => Ok(addr),
+        Either::Right((port, name)) => {
           // First, check cache
           if let Some(ent) = self.cache.get(name) {
             let val = ent.value();
@@ -262,7 +262,7 @@ mod resolver {
           }
 
           // Finally, try to find the socket addr locally
-          let res = ToSocketAddrs::to_socket_addrs(&(name.as_str(), address.port))?;
+          let res = ToSocketAddrs::to_socket_addrs(&(name.as_str(), port))?;
           if let Some(addr) = res.into_iter().next() {
             self
               .cache

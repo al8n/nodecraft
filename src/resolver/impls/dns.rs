@@ -7,9 +7,10 @@ pub use agnostic::{
 };
 use agnostic::{net::ToSocketAddrs, Runtime};
 use crossbeam_skiplist::SkipMap;
+use either::Either;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{Domain, HostAddr, Kind};
+use crate::{Domain, HostAddr};
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
@@ -225,9 +226,9 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
   }
 
   async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
-    match &address.kind {
-      Kind::Ip(ip) => Ok(SocketAddr::new(*ip, address.port)),
-      Kind::Domain(name) => {
+    match address.as_inner() {
+      Either::Left(addr) => Ok(addr),
+      Either::Right((port, name)) => {
         // First, check cache
         if let Some(ent) = self.cache.get(name.as_str()) {
           let val = ent.value();
@@ -247,7 +248,7 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
             .into_iter()
             .next()
           {
-            let addr = SocketAddr::new(ip, address.port);
+            let addr = SocketAddr::new(ip, port);
             self
               .cache
               .insert(name.clone(), CachedSocketAddr::new(addr, self.record_ttl));
@@ -256,7 +257,6 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         }
 
         // Finally, try to find the socket addr locally
-        let port = address.port;
         let tsafe = name.clone();
 
         let res = ToSocketAddrs::<R>::to_socket_addrs(&(tsafe.as_str(), port)).await?;

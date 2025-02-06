@@ -17,18 +17,18 @@ pub use either::Either;
   feature = "rkyv",
   rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
-pub(crate) enum Kind {
+enum Repr {
   Ip(IpAddr),
   Domain(Domain),
 }
 
-impl PartialOrd for Kind {
+impl PartialOrd for Repr {
   fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
     Some(self.cmp(other))
   }
 }
 
-impl Ord for Kind {
+impl Ord for Repr {
   fn cmp(&self, other: &Self) -> core::cmp::Ordering {
     match (self, other) {
       (Self::Ip(a), Self::Ip(b)) => a.cmp(b),
@@ -69,8 +69,8 @@ pub enum ParseHostAddrError {
   rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
 pub struct HostAddr {
-  pub(crate) kind: Kind,
-  pub(crate) port: u16,
+  kind: Repr,
+  port: u16,
 }
 
 impl PartialOrd for HostAddr {
@@ -91,8 +91,8 @@ impl Ord for HostAddr {
 impl core::fmt::Display for HostAddr {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match &self.kind {
-      Kind::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
-      Kind::Domain(name) => write!(f, "{}:{}", name.as_str(), self.port),
+      Repr::Ip(addr) => write!(f, "{}", SocketAddr::new(*addr, self.port)),
+      Repr::Domain(name) => write!(f, "{}:{}", name.as_str(), self.port),
     }
   }
 }
@@ -103,11 +103,12 @@ impl serde::Serialize for HostAddr {
   where
     S: serde::Serializer,
   {
+    use smol_str03::ToSmolStr;
     match &self.kind {
-      Kind::Ip(ip) => SocketAddr::new(*ip, self.port)
-        .to_string()
+      Repr::Ip(ip) => SocketAddr::new(*ip, self.port)
+        .to_smolstr()
         .serialize(serializer),
-      Kind::Domain(name) => {
+      Repr::Domain(name) => {
         let s = format!("{}:{}", name.as_str(), self.port);
         s.serialize(serializer)
       }
@@ -129,7 +130,7 @@ impl<'de> serde::Deserialize<'de> for HostAddr {
 impl From<SocketAddr> for HostAddr {
   fn from(addr: SocketAddr) -> Self {
     Self {
-      kind: Kind::Ip(addr.ip()),
+      kind: Repr::Ip(addr.ip()),
       port: addr.port(),
     }
   }
@@ -138,7 +139,7 @@ impl From<SocketAddr> for HostAddr {
 impl From<(IpAddr, u16)> for HostAddr {
   fn from(addr: (IpAddr, u16)) -> Self {
     Self {
-      kind: Kind::Ip(addr.0),
+      kind: Repr::Ip(addr.0),
       port: addr.1,
     }
   }
@@ -147,7 +148,7 @@ impl From<(IpAddr, u16)> for HostAddr {
 impl From<(Domain, u16)> for HostAddr {
   fn from(addr: (Domain, u16)) -> Self {
     Self {
-      kind: Kind::Domain(addr.0),
+      kind: Repr::Domain(addr.0),
       port: addr.1,
     }
   }
@@ -189,7 +190,7 @@ impl FromStr for HostAddr {
             let dns = Domain::try_from(domain)?;
 
             Ok(Self {
-              kind: Kind::Domain(dns),
+              kind: Repr::Domain(dns),
               port,
             })
           }
@@ -206,12 +207,12 @@ impl TryFrom<(&str, u16)> for HostAddr {
     let res: Result<IpAddr, _> = domain.parse();
     match res {
       Ok(addr) => Ok(Self {
-        kind: Kind::Ip(addr),
+        kind: Repr::Ip(addr),
         port,
       }),
       Err(_) => Domain::try_from(domain)
         .map(|dns| Self {
-          kind: Kind::Domain(dns),
+          kind: Repr::Domain(dns),
           port,
         })
         .map_err(Into::into),
@@ -224,7 +225,7 @@ impl HostAddr {
   pub fn from_domain(s: &str, port: u16) -> Result<Self, ParseHostAddrError> {
     Domain::try_from(s)
       .map(|d| Self {
-        kind: Kind::Domain(d),
+        kind: Repr::Domain(d),
         port,
       })
       .map_err(Into::into)
@@ -233,24 +234,24 @@ impl HostAddr {
   /// Returns the domain of the address if this address can only be represented by domain name
   pub fn domain(&self) -> Option<&str> {
     match &self.kind {
-      Kind::Ip(_) => None,
-      Kind::Domain(name) => Some(name.as_str()),
+      Repr::Ip(_) => None,
+      Repr::Domain(name) => Some(name.as_str()),
     }
   }
 
   /// Returns the fqdn of the address if this address can only be represented by domain name
   pub fn fqdn(&self) -> Option<&str> {
     match &self.kind {
-      Kind::Ip(_) => None,
-      Kind::Domain(name) => Some(name.fqdn_str()),
+      Repr::Ip(_) => None,
+      Repr::Domain(name) => Some(name.fqdn_str()),
     }
   }
 
   /// Returns the ip of the address if this address can be represented by [`IpAddr`]
   pub const fn ip(&self) -> Option<IpAddr> {
     match &self.kind {
-      Kind::Ip(addr) => Some(*addr),
-      Kind::Domain(_) => None,
+      Repr::Ip(addr) => Some(*addr),
+      Repr::Domain(_) => None,
     }
   }
 
@@ -278,8 +279,17 @@ impl HostAddr {
   #[inline]
   pub fn into_inner(self) -> Either<SocketAddr, (u16, Domain)> {
     match self.kind {
-      Kind::Ip(addr) => Either::Left(SocketAddr::new(addr, self.port)),
-      Kind::Domain(name) => Either::Right((self.port, name)),
+      Repr::Ip(addr) => Either::Left(SocketAddr::new(addr, self.port)),
+      Repr::Domain(name) => Either::Right((self.port, name)),
+    }
+  }
+
+  /// Returns the reference to the inner data
+  #[inline]
+  pub fn as_inner(&self) -> Either<SocketAddr, (u16, &Domain)> {
+    match &self.kind {
+      Repr::Ip(addr) => Either::Left(SocketAddr::new(*addr, self.port)),
+      Repr::Domain(name) => Either::Right((self.port, name)),
     }
   }
 }
@@ -320,7 +330,7 @@ const _: () = {
   }
 };
 
-#[cfg(test)]
+#[cfg(all(any(feature = "std", feature = "alloc"), test))]
 mod tests {
   use core::net::{Ipv4Addr, Ipv6Addr};
 
@@ -336,7 +346,7 @@ mod tests {
       let port = rng.random_range(0..=u16::MAX);
 
       Self {
-        kind: Kind::Ip(IpAddr::V4(Ipv4Addr::from(addr))),
+        kind: Repr::Ip(IpAddr::V4(Ipv4Addr::from(addr))),
         port,
       }
     }
@@ -349,7 +359,7 @@ mod tests {
       let port = rng.random_range(0..=u16::MAX);
 
       Self {
-        kind: Kind::Ip(IpAddr::V6(Ipv6Addr::from(addr))),
+        kind: Repr::Ip(IpAddr::V6(Ipv6Addr::from(addr))),
         port,
       }
     }
@@ -368,7 +378,7 @@ mod tests {
       let port = trng.random_range(0..=u16::MAX);
 
       Self {
-        kind: Kind::Domain(Domain::try_from(domain).unwrap()),
+        kind: Repr::Domain(Domain::try_from(domain).unwrap()),
         port,
       }
     }
@@ -483,11 +493,20 @@ mod tests {
     let p = HostAddr::try_from("www.example.com");
     assert!(matches!(p, Err(ParseHostAddrError::PortNotFound)));
   }
+
+  #[cfg(feature = "serde")]
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_serde_human_readable(node: HostAddr) -> bool {
+    let serialized = serde_json::to_string(&node).unwrap();
+    let deserialized: HostAddr = serde_json::from_str(&serialized).unwrap();
+    node == deserialized
+  }
+
   #[cfg(feature = "serde")]
   #[quickcheck_macros::quickcheck]
   fn fuzzy_serde(node: HostAddr) -> bool {
-    let serialized = serde_json::to_string(&node).unwrap();
-    let deserialized: HostAddr = serde_json::from_str(&serialized).unwrap();
+    let serialized = bincode::serialize(&node).unwrap();
+    let deserialized: HostAddr = bincode::deserialize(&serialized).unwrap();
     node == deserialized
   }
 }

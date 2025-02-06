@@ -2,8 +2,6 @@ use core::fmt::{Debug, Display};
 
 mod impls;
 use cheap_clone::CheapClone;
-#[cfg(feature = "resolver")]
-pub(crate) use impls::Kind;
 
 #[cfg(feature = "std")]
 pub use impls::{Domain, HostAddr, ParseDomainError, ParseHostAddrError};

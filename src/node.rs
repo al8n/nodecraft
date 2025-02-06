@@ -269,7 +269,7 @@ const _: () = {
   }
 };
 
-#[cfg(test)]
+#[cfg(all(any(feature = "std", feature = "alloc"), test))]
 mod tests {
   use super::*;
   use arbitrary::{Arbitrary, Unstructured};
