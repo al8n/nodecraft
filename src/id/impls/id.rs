@@ -134,7 +134,7 @@ impl<const N: usize> TryFrom<&[u8]> for NodeId<N> {
   }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<const N: usize> TryFrom<Vec<u8>> for NodeId<N> {
   type Error = ParseNodeIdError;
 
@@ -153,7 +153,7 @@ impl<const N: usize> TryFrom<Vec<u8>> for NodeId<N> {
   }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<const N: usize> TryFrom<String> for NodeId<N> {
   type Error = ParseNodeIdError;
 
@@ -252,7 +252,7 @@ mod tests {
   }
 
   #[test]
-  #[cfg(feature = "alloc")]
+  #[cfg(any(feature = "alloc", feature = "std"))]
   fn test_try_from() {
     let id = NodeId::<16>::try_from(String::from("test")).unwrap();
     assert_eq!(id.as_str(), "test");

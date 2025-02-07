@@ -144,7 +144,7 @@ impl Domain {
   }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl TryFrom<String> for Domain {
   type Error = ParseDomainError;
 
@@ -153,7 +153,7 @@ impl TryFrom<String> for Domain {
   }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl TryFrom<&String> for Domain {
   type Error = ParseDomainError;
 
@@ -425,7 +425,7 @@ mod tests {
 
   use super::*;
 
-  #[cfg(feature = "alloc")]
+  #[cfg(any(feature = "alloc", feature = "std"))]
   static TESTS: &[(&str, bool)] = &[
     ("", false),
     ("localhost", true),
@@ -486,7 +486,7 @@ mod tests {
     ("测试.中国", true),
   ];
 
-  #[cfg(feature = "alloc")]
+  #[cfg(any(feature = "alloc", feature = "std"))]
   #[test]
   fn test_validation() {
     for (input, expected) in TESTS {
@@ -499,7 +499,7 @@ mod tests {
     }
   }
 
-  #[cfg(feature = "alloc")]
+  #[cfg(any(feature = "alloc", feature = "std"))]
   #[test]
   fn test_basic() {
     let name = Domain::try_from(&"localhost".to_string()).unwrap();
