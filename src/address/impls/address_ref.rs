@@ -137,11 +137,7 @@ impl<'a> TryFrom<&'a str> for HostAddrRef<'a> {
 
             let port = port.parse()?;
             let dns = DomainRef::try_from(domain)?;
-
-            Ok(Self {
-              kind: Repr::DomainRef(dns),
-              port,
-            })
+            Ok(Self::from((dns, port)))
           }
         }
       }
@@ -155,15 +151,9 @@ impl<'a> TryFrom<(&'a str, u16)> for HostAddrRef<'a> {
   fn try_from((domain, port): (&'a str, u16)) -> Result<Self, Self::Error> {
     let res: Result<IpAddr, _> = domain.parse();
     match res {
-      Ok(addr) => Ok(Self {
-        kind: Repr::Ip(addr),
-        port,
-      }),
+      Ok(addr) => Ok(Self::from((addr, port))),
       Err(_) => DomainRef::try_from(domain)
-        .map(|dns| Self {
-          kind: Repr::DomainRef(dns),
-          port,
-        })
+        .map(|dns| Self::from((dns, port)))
         .map_err(Into::into),
     }
   }
@@ -252,6 +242,29 @@ mod tests {
 
     let p = HostAddrRef::try_from("www.example.com");
     assert!(matches!(p, Err(ParseHostAddrError::PortNotFound)));
+
+    let p = HostAddrRef::try_from(":80");
+    assert!(matches!(p, Err(ParseHostAddrError::Domain(_))));
+
+    let p = HostAddrRef::from_domain("", 80);
+    assert!(matches!(p, Err(ParseHostAddrError::Domain(_))));
+  }
+
+  #[test]
+  fn test_eq_and_ord() {
+    let name1 = HostAddrRef::try_from("www.example.com:80").unwrap();
+    let name2 = HostAddrRef::try_from("127.0.0.1:80").unwrap();
+    let name3 = HostAddrRef::try_from("192.168.0.1:80").unwrap();
+    let name4 = HostAddrRef::try_from("www.foo.com:80").unwrap();
+
+    let mut array = [name1, name2, name3, name4];
+    array.sort();
+
+    assert_eq!(array[0], name2);
+    assert_eq!(array[1], name3);
+    assert_eq!(array[2], name1);
+    assert_eq!(array[3], name4);
+    assert_eq!(name1.partial_cmp(&name4), Some(core::cmp::Ordering::Less));
   }
 
   #[cfg(feature = "serde")]
@@ -279,6 +292,7 @@ mod tests {
 
     let sock_addr: core::net::SocketAddr = "192.168.0.1:8080".parse().unwrap();
     let aref = HostAddrRef::from(sock_addr);
+    assert!(matches!(aref.into_inner(), Either::Left(_)));
     let addr = super::super::HostAddr::from(sock_addr);
     let s = serde_json::to_string(&aref).unwrap();
     let addr2: super::super::HostAddr = serde_json::from_str(&s).unwrap();

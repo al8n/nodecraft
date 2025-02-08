@@ -179,9 +179,7 @@ impl<'a> TryFrom<&'a [u8]> for DomainRef<'a> {
 
           Self::new(ascii_str, true)
         }
-        ProcessingSuccess::Passthrough => {
-          unreachable!("pure ASCII domain should already be processed by fast path")
-        }
+        _ => unreachable!("ASCII domain should already be processed by fast path"),
       },
       Err(_) => return Err(ParseDomainError),
     })
@@ -311,6 +309,7 @@ mod tests {
     let name = DomainRef::try_from(b"localhost.".as_slice()).unwrap();
     assert_eq!("localhost.", name.as_source_str());
     assert!(name.is_fqdn());
+    assert!(!name.is_idn());
 
     let name = DomainRef::try_from(b"labelendswithnumber1.bar.com".as_slice()).unwrap();
     assert_eq!(name.as_str(), "labelendswithnumber1.bar.com");
@@ -334,6 +333,9 @@ mod tests {
     assert_eq!("localhost", name.as_str());
     assert_eq!("localhost.", name.as_source_str());
     assert!(name.is_fqdn());
+    let name = name.to_owned();
+    assert_eq!("localhost", name.as_str());
+    assert_eq!("localhost.", name.fqdn_str());
 
     let name = DomainRef::try_from("labelendswithnumber1.bar.com").unwrap();
     assert_eq!(name.as_str(), "labelendswithnumber1.bar.com");
@@ -343,9 +345,22 @@ mod tests {
   }
 
   #[test]
+  fn test_eq_and_ord() {
+    let name1 = DomainRef::try_from("localhost").unwrap();
+    let name2 = DomainRef::try_from("localhost.").unwrap();
+    assert_eq!(name1, name2);
+    assert_eq!(name1.as_str(), name2.as_str());
+    assert_ne!(name1.as_source_str(), name2.as_source_str());
+
+    assert!(name1.partial_cmp(&name2) == Some(core::cmp::Ordering::Equal));
+  }
+
+  #[test]
   fn test_non_ascii() {
     let name = DomainRef::try_from("测试.com.").unwrap();
     assert_eq!("测试.com.", name.as_source_str());
+    assert!(name.is_fqdn());
+    assert!(name.is_idn());
     let name = name.to_owned();
     assert_eq!("xn--0zwm56d.com", name.as_str());
     assert_eq!("xn--0zwm56d.com.", name.fqdn_str());
