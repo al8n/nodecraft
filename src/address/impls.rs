@@ -1,12 +1,14 @@
-mod address;
-mod address_ref;
-mod domain;
-mod domain_ref;
+cfg_alloc!(
+  mod address;
+  mod address_ref;
+  mod domain;
+  mod domain_ref;
 
-pub use address::*;
-pub use address_ref::*;
-pub use domain::*;
-pub use domain_ref::*;
+  pub use address::*;
+  pub use address_ref::*;
+  pub use domain::*;
+  pub use domain_ref::*;
+);
 
 /// An error which can be returned when parsing a [`HostAddr`].
 #[derive(Debug, thiserror::Error)]
