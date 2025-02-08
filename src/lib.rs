@@ -8,7 +8,7 @@
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc as std;
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "alloc"))]
 extern crate std;
 
 mod address;

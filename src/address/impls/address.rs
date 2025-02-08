@@ -1,11 +1,10 @@
-use std::{
+use core::{
   net::{IpAddr, SocketAddr},
   str::FromStr,
 };
-
-mod domain;
-pub use domain::{Domain, ParseDomainError};
 pub use either::Either;
+
+use super::{Domain, ParseHostAddrError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -37,20 +36,6 @@ impl Ord for Repr {
       (Self::Domain(_), Self::Ip(_)) => core::cmp::Ordering::Greater,
     }
   }
-}
-
-/// An error which can be returned when parsing a [`HostAddr`].
-#[derive(Debug, thiserror::Error)]
-pub enum ParseHostAddrError {
-  /// Returned if the provided str is missing port.
-  #[error("address is missing port")]
-  PortNotFound,
-  /// Returned if the provided str is not a valid address.
-  #[error(transparent)]
-  Domain(#[from] ParseDomainError),
-  /// Returned if the provided str is not a valid port.
-  #[error("invalid port: {0}")]
-  Port(#[from] core::num::ParseIntError),
 }
 
 /// A host address which supports both `domain:port` and socket address.
