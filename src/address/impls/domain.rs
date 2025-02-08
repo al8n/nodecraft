@@ -1,4 +1,6 @@
 use super::{validate, ParseDomainError};
+use std::string::String;
+
 use idna::{
   uts46::{DnsLength, Hyphens, Uts46},
   AsciiDenyList,

@@ -2,6 +2,8 @@ use core::{
   net::{IpAddr, SocketAddr},
   str::FromStr,
 };
+use std::string::String;
+
 pub use either::Either;
 
 use super::{Domain, ParseHostAddrError};

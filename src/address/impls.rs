@@ -1,17 +1,24 @@
-cfg_alloc!(
-  mod address;
-  mod address_ref;
-  mod domain;
-  mod domain_ref;
+#[cfg(any(feature = "std", feature = "alloc"))]
+mod address;
+#[cfg(any(feature = "std", feature = "alloc"))]
+mod address_ref;
+#[cfg(any(feature = "std", feature = "alloc"))]
+mod domain;
+#[cfg(any(feature = "std", feature = "alloc"))]
+mod domain_ref;
 
-  pub use address::*;
-  pub use address_ref::*;
-  pub use domain::*;
-  pub use domain_ref::*;
-);
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use address::*;
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use address_ref::*;
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use domain::*;
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use domain_ref::*;
 
 /// An error which can be returned when parsing a [`HostAddr`].
 #[derive(Debug, thiserror::Error)]
+#[cfg(any(feature = "std", feature = "alloc"))]
 pub enum ParseHostAddrError {
   /// Returned if the provided str is missing port.
   #[error("address is missing port")]
@@ -26,17 +33,11 @@ pub enum ParseHostAddrError {
 
 /// The provided input could not be parsed because
 /// it is not a syntactically-valid DNS Domain.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("invalid domain name")]
 pub struct ParseDomainError;
 
-impl core::fmt::Display for ParseDomainError {
-  fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-    f.write_str("invalid domain name")
-  }
-}
-
-impl core::error::Error for ParseDomainError {}
-
+#[cfg(any(feature = "std", feature = "alloc"))]
 const fn validate(input: &[u8]) -> Result<(), ParseDomainError> {
   enum State {
     Start,

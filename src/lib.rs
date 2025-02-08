@@ -8,16 +8,8 @@
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc as std;
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(feature = "std")]
 extern crate std;
-
-macro_rules! cfg_alloc {
-  ($($item:item)*) => {
-    #[cfg(any(feature = "std", feature = "alloc"))]
-    #[cfg_attr(docsrs, doc(cfg(any(feature = "std", feature = "alloc"))))]
-    $($item)*
-  };
-}
 
 mod address;
 mod id;
