@@ -46,11 +46,7 @@ impl<'a> DomainRef<'a> {
   #[inline]
   fn new(s: &'a str, idn: bool) -> Self {
     let fqdn = s.ends_with('.');
-    Self {
-      data: s,
-      fqdn,
-      idn,
-    }
+    Self { data: s, fqdn, idn }
   }
 
   /// Returns the domain as a str slice.
@@ -183,7 +179,9 @@ impl<'a> TryFrom<&'a [u8]> for DomainRef<'a> {
 
           Self::new(ascii_str, true)
         }
-        ProcessingSuccess::Passthrough => unreachable!("pure ASCII domain should already be processed by fast path"),
+        ProcessingSuccess::Passthrough => {
+          unreachable!("pure ASCII domain should already be processed by fast path")
+        }
       },
       Err(_) => return Err(ParseDomainError),
     })
