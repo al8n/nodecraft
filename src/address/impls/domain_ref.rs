@@ -43,6 +43,16 @@ impl Ord for DomainRef<'_> {
 }
 
 impl<'a> DomainRef<'a> {
+  #[inline]
+  fn new(s: &'a str, idn: bool) -> Self {
+    let fqdn = s.ends_with('.');
+    Self {
+      data: s,
+      fqdn,
+      idn,
+    }
+  }
+
   /// Returns the domain as a str slice.
   #[inline]
   pub fn as_str(&self) -> &'a str {
@@ -106,59 +116,55 @@ impl<'a> TryFrom<&'a str> for DomainRef<'a> {
   }
 }
 
+struct Sinker {
+  buf: [u8; 254], // one more for the trailing dot
+  pos: usize,
+}
+
+impl Sinker {
+  #[inline]
+  const fn new() -> Self {
+    Self {
+      buf: [0; 254],
+      pos: 0,
+    }
+  }
+
+  #[inline]
+  fn as_str(&self) -> &str {
+    core::str::from_utf8(&self.buf[0..self.pos]).expect("valid utf-8")
+  }
+}
+
+impl core::fmt::Write for Sinker {
+  fn write_str(&mut self, s: &str) -> core::fmt::Result {
+    let len = s.len();
+    if self.pos + len > 254 {
+      return Err(core::fmt::Error);
+    }
+    self.buf[self.pos..self.pos + len].copy_from_slice(s.as_bytes());
+    self.pos += len;
+    Ok(())
+  }
+}
+
 impl<'a> TryFrom<&'a [u8]> for DomainRef<'a> {
   type Error = ParseDomainError;
 
   fn try_from(domain: &'a [u8]) -> Result<Self, ParseDomainError> {
-    struct DummySink {
-      buf: [u8; 254], // one more for the trailing dot
-      pos: usize,
-    }
-
-    impl DummySink {
-      #[inline]
-      const fn new() -> Self {
-        Self {
-          buf: [0; 254],
-          pos: 0,
-        }
-      }
-
-      #[inline]
-      fn as_str(&self) -> &str {
-        core::str::from_utf8(&self.buf[0..self.pos]).expect("valid utf-8")
-      }
-    }
-
-    impl core::fmt::Write for DummySink {
-      fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        let len = s.len();
-        if self.pos + len > 254 {
-          return Err(core::fmt::Error);
-        }
-        self.buf[self.pos..self.pos + len].copy_from_slice(s.as_bytes());
-        self.pos += len;
-        Ok(())
-      }
-    }
-
     // fast path
     if domain.is_ascii() {
       return super::validate(domain).map(|_| {
         let domain = core::str::from_utf8(domain).expect("ASCII must be valid utf-8");
-        DomainRef {
-          data: domain,
-          fqdn: domain.ends_with('.'),
-          idn: false,
-        }
+        Self::new(domain, false)
       });
     }
 
     let uts46 = Uts46::new();
-    let mut sink = DummySink::new();
+    let mut sink = Sinker::new();
     let result = uts46.process(
       domain,
-      AsciiDenyList::URL,
+      AsciiDenyList::EMPTY,
       Hyphens::Allow,
       ErrorPolicy::FailFast,
       |_, _, _| false, // Force ToASCII processing
@@ -169,29 +175,15 @@ impl<'a> TryFrom<&'a [u8]> for DomainRef<'a> {
     let ascii_str = core::str::from_utf8(domain).map_err(|_| ParseDomainError)?;
     Ok(match result {
       Ok(res) => match res {
-        ProcessingSuccess::Passthrough => {
-          if !verify_dns_length(ascii_str, true) {
-            return Err(ParseDomainError);
-          }
-
-          Self {
-            data: ascii_str,
-            fqdn: ascii_str.ends_with('.'),
-            idn: false,
-          }
-        }
         ProcessingSuccess::WroteToSink => {
           let s = sink.as_str();
           if !verify_dns_length(s, true) {
             return Err(ParseDomainError);
           }
 
-          Self {
-            data: ascii_str,
-            fqdn: ascii_str.ends_with('.'),
-            idn: true,
-          }
+          Self::new(ascii_str, true)
         }
+        ProcessingSuccess::Passthrough => unreachable!("pure ASCII domain should already be processed by fast path"),
       },
       Err(_) => return Err(ParseDomainError),
     })
