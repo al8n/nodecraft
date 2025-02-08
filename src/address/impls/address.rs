@@ -142,6 +142,15 @@ impl From<(Domain, u16)> for HostAddr {
   }
 }
 
+impl<'a> From<(super::DomainRef<'a>, u16)> for HostAddr {
+  fn from(addr: (super::DomainRef<'a>, u16)) -> Self {
+    Self {
+      kind: Repr::Domain(addr.0.to_owned()),
+      port: addr.1,
+    }
+  }
+}
+
 impl TryFrom<String> for HostAddr {
   type Error = ParseHostAddrError;
 

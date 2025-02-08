@@ -202,20 +202,6 @@ impl<'a> HostAddrRef<'a> {
     self.port
   }
 
-  /// Set the port
-  #[inline]
-  pub fn set_port(&mut self, port: u16) -> &mut Self {
-    self.port = port;
-    self
-  }
-
-  /// Set the port in builder pattern
-  #[inline]
-  pub const fn with_port(mut self, port: u16) -> Self {
-    self.port = port;
-    self
-  }
-
   /// Consumes the host addr and returns the inner data
   #[inline]
   pub fn into_inner(self) -> Either<SocketAddr, (u16, DomainRef<'a>)> {
@@ -266,5 +252,49 @@ mod tests {
 
     let p = HostAddrRef::try_from("www.example.com");
     assert!(matches!(p, Err(ParseHostAddrError::PortNotFound)));
+  }
+
+  #[cfg(feature = "serde")]
+  #[test]
+  fn test_serde() {
+    use crate::address::impls::domain_ref;
+
+    let aref = HostAddrRef::try_from("www.example.com:8080").unwrap();
+    let addr = super::super::HostAddr::try_from("www.example.com:8080").unwrap();
+    let s = serde_json::to_string(&aref).unwrap();
+    let addr2: super::super::HostAddr = serde_json::from_str(&s).unwrap();
+    assert_eq!(addr, addr2);
+
+    let s = serde_json::from_str::<HostAddrRef<'_>>(&s).unwrap();
+    assert_eq!(s, aref);
+
+    let aref = HostAddrRef::from((IpAddr::from(Ipv4Addr::LOCALHOST), 80u16));
+    let addr = super::super::HostAddr::from((IpAddr::from(Ipv4Addr::LOCALHOST), 80u16));
+    let s = serde_json::to_string(&aref).unwrap();
+    let addr2: super::super::HostAddr = serde_json::from_str(&s).unwrap();
+    assert_eq!(addr, addr2);
+
+    let s = serde_json::from_str::<HostAddrRef<'_>>(&s).unwrap();
+    assert_eq!(s, aref);
+
+    let sock_addr: core::net::SocketAddr = "192.168.0.1:8080".parse().unwrap();
+    let aref = HostAddrRef::from(sock_addr);
+    let addr = super::super::HostAddr::from(sock_addr);
+    let s = serde_json::to_string(&aref).unwrap();
+    let addr2: super::super::HostAddr = serde_json::from_str(&s).unwrap();
+    assert_eq!(addr, addr2);
+
+    let s = serde_json::from_str::<HostAddrRef<'_>>(&s).unwrap();
+    assert_eq!(s, aref);
+
+    let domain_ref = domain_ref::DomainRef::try_from("www.example.com").unwrap();
+    let aref = HostAddrRef::from((domain_ref, 80));
+    let addr = super::super::HostAddr::from((domain_ref, 80));
+    let s = serde_json::to_string(&aref).unwrap();
+    let addr2: super::super::HostAddr = serde_json::from_str(&s).unwrap();
+    assert_eq!(addr, addr2);
+
+    let s = serde_json::from_str::<HostAddrRef<'_>>(&s).unwrap();
+    assert_eq!(s, aref);
   }
 }
