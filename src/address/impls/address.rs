@@ -1,11 +1,12 @@
-use std::{
+use core::{
   net::{IpAddr, SocketAddr},
   str::FromStr,
 };
+use std::string::String;
 
-mod domain;
-pub use domain::{Domain, ParseDomainError};
 pub use either::Either;
+
+use super::{Domain, ParseHostAddrError};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -37,20 +38,6 @@ impl Ord for Repr {
       (Self::Domain(_), Self::Ip(_)) => core::cmp::Ordering::Greater,
     }
   }
-}
-
-/// An error which can be returned when parsing a [`HostAddr`].
-#[derive(Debug, thiserror::Error)]
-pub enum ParseHostAddrError {
-  /// Returned if the provided str is missing port.
-  #[error("address is missing port")]
-  PortNotFound,
-  /// Returned if the provided str is not a valid address.
-  #[error(transparent)]
-  Domain(#[from] ParseDomainError),
-  /// Returned if the provided str is not a valid port.
-  #[error("invalid port: {0}")]
-  Port(#[from] core::num::ParseIntError),
 }
 
 /// A host address which supports both `domain:port` and socket address.
@@ -104,12 +91,13 @@ impl serde::Serialize for HostAddr {
     S: serde::Serializer,
   {
     use smol_str03::ToSmolStr;
+
     match &self.kind {
       Repr::Ip(ip) => SocketAddr::new(*ip, self.port)
         .to_smolstr()
         .serialize(serializer),
       Repr::Domain(name) => {
-        let s = format!("{}:{}", name.as_str(), self.port);
+        let s = smol_str03::format_smolstr!("{}:{}", name.as_str(), self.port);
         s.serialize(serializer)
       }
     }
@@ -149,6 +137,15 @@ impl From<(Domain, u16)> for HostAddr {
   fn from(addr: (Domain, u16)) -> Self {
     Self {
       kind: Repr::Domain(addr.0),
+      port: addr.1,
+    }
+  }
+}
+
+impl<'a> From<(super::DomainRef<'a>, u16)> for HostAddr {
+  fn from(addr: (super::DomainRef<'a>, u16)) -> Self {
+    Self {
+      kind: Repr::Domain(addr.0.to_owned()),
       port: addr.1,
     }
   }

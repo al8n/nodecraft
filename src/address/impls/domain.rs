@@ -1,7 +1,10 @@
-use core::fmt;
-use std::borrow::Cow;
+use super::{validate, ParseDomainError};
+use std::string::String;
 
-use idna::{domain_to_ascii_cow, AsciiDenyList};
+use idna::{
+  uts46::{DnsLength, Hyphens, Uts46},
+  AsciiDenyList,
+};
 use smol_str03::SmolStr;
 
 /// A type which encapsulates a string that is a syntactically domain name.
@@ -14,7 +17,7 @@ use smol_str03::SmolStr;
   feature = "rkyv",
   rkyv(compare(PartialEq), derive(PartialEq, Eq, PartialOrd, Ord, Hash))
 )]
-pub struct Domain(SmolStr);
+pub struct Domain(pub(crate) SmolStr);
 
 #[cfg(feature = "serde")]
 const _: () = {
@@ -92,7 +95,7 @@ impl Domain {
 
   /// Create a new Domain from a string, performing IDNA processing and validation.
   pub fn try_from_inner(domain: &[u8]) -> Result<Self, ParseDomainError> {
-    let domain = if domain.is_ascii() {
+    if domain.is_ascii() {
       validate(domain)?;
 
       let domain = core::str::from_utf8(domain).expect("bytes must be valid utf8");
@@ -101,45 +104,22 @@ impl Domain {
         return Ok(Self(domain.into()));
       }
 
-      Cow::Borrowed(domain)
+      Ok(Domain(smol_str03::format_smolstr!("{}.", domain)))
     } else {
-      let without_dot = if domain.ends_with(b".") {
-        &domain[..domain.len() - 1]
-      } else {
-        domain
-      };
-      let valid_domain =
-        domain_to_ascii_cow(without_dot, AsciiDenyList::EMPTY).map_err(|_| ParseDomainError)?;
+      let valid_domain = Uts46::new()
+        .to_ascii(
+          domain,
+          AsciiDenyList::EMPTY,
+          Hyphens::Allow,
+          DnsLength::VerifyAllowRootDot,
+        )
+        .map_err(|_| ParseDomainError)?;
 
-      if domain.ends_with(b".") && matches!(valid_domain, Cow::Borrowed(_)) {
-        return Ok(Self(
-          core::str::from_utf8(domain)
-            .expect("input must be valid utf8 bytes")
-            .into(),
-        ));
+      if valid_domain.ends_with('.') {
+        return Ok(Self(valid_domain.into()));
       }
 
-      valid_domain
-    };
-
-    let len = domain.len();
-    if len + 1 < 23 {
-      // Use stack allocation for small strings
-      let mut buf = [0u8; 23];
-      buf[..len].copy_from_slice(domain.as_bytes());
-      buf[len] = b'.'; // Add trailing dot
-      Ok(Self(
-        // SAFETY: We know the input is valid UTF-8 from validation
-        core::str::from_utf8(&buf[..=len])
-          .expect("input must be valid utf8 bytes")
-          .into(),
-      ))
-    } else {
-      // Consider pre-allocating with capacity
-      let mut string = String::with_capacity(domain.len() + 1);
-      string.push_str(&domain);
-      string.push('.');
-      Ok(Self(string.into()))
+      Ok(Self(smol_str03::format_smolstr!("{}.", valid_domain)))
     }
   }
 }
@@ -191,82 +171,6 @@ impl AsRef<str> for Domain {
     self.as_str()
   }
 }
-
-/// The provided input could not be parsed because
-/// it is not a syntactically-valid DNS Domain.
-#[derive(Debug)]
-pub struct ParseDomainError;
-
-impl fmt::Display for ParseDomainError {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    f.write_str("invalid domain name")
-  }
-}
-
-impl core::error::Error for ParseDomainError {}
-
-const fn validate(input: &[u8]) -> Result<(), ParseDomainError> {
-  enum State {
-    Start,
-    Next,
-    NumericOnly { len: usize },
-    NextAfterNumericOnly,
-    Subsequent { len: usize },
-    Hyphen { len: usize },
-  }
-
-  use State::*;
-
-  let mut state = Start;
-
-  /// "Labels must be 63 characters or less."
-  const MAX_LABEL_LENGTH: usize = 63;
-
-  /// https://devblogs.microsoft.com/oldnewthing/20120412-00/?p=7873
-  const MAX_NAME_LENGTH: usize = 253;
-
-  let len = input.len();
-  if input.len() > MAX_NAME_LENGTH {
-    return Err(ParseDomainError);
-  }
-
-  let mut i = 0;
-  while i < len {
-    let ch = input[i];
-    state = match (state, ch) {
-      (Start | Next | NextAfterNumericOnly | Hyphen { .. }, b'.') => return Err(ParseDomainError),
-      (Subsequent { .. }, b'.') => Next,
-      (NumericOnly { .. }, b'.') => NextAfterNumericOnly,
-      (Subsequent { len } | NumericOnly { len } | Hyphen { len }, _) if len >= MAX_LABEL_LENGTH => {
-        return Err(ParseDomainError)
-      }
-      (Start | Next | NextAfterNumericOnly, b'0'..=b'9') => NumericOnly { len: 1 },
-      (NumericOnly { len }, b'0'..=b'9') => NumericOnly { len: len + 1 },
-      (Start | Next | NextAfterNumericOnly, b'a'..=b'z' | b'A'..=b'Z' | b'_') => {
-        Subsequent { len: 1 }
-      }
-      (Subsequent { len } | NumericOnly { len } | Hyphen { len }, b'-') => Hyphen { len: len + 1 },
-      (
-        Subsequent { len } | NumericOnly { len } | Hyphen { len },
-        b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'0'..=b'9',
-      ) => Subsequent { len: len + 1 },
-      _ => return Err(ParseDomainError),
-    };
-    i += 1;
-  }
-
-  if matches!(
-    state,
-    Start | Hyphen { .. } | NumericOnly { .. } | NextAfterNumericOnly
-  ) {
-    return Err(ParseDomainError);
-  }
-
-  Ok(())
-}
-
-#[cfg(feature = "arbitrary")]
-const _: () = {};
 
 #[cfg(feature = "arbitrary")]
 const _: () = {
@@ -490,7 +394,7 @@ mod tests {
   #[test]
   fn test_validation() {
     for (input, expected) in TESTS {
-      #[cfg(feature = "std")]
+      #[cfg(any(feature = "std", feature = "alloc"))]
       println!("test: {:?} expected valid? {:?}", input, expected);
       let name_ref = Domain::try_from(*input);
       assert_eq!(*expected, name_ref.is_ok());
@@ -508,7 +412,7 @@ mod tests {
     println!("{}", err);
   }
 
-  #[cfg(feature = "std")]
+  #[cfg(any(feature = "std", feature = "alloc"))]
   #[test]
   fn test_borrow() {
     use std::collections::HashSet;
@@ -531,10 +435,10 @@ mod tests {
     assert_eq!("localhost", name.as_str());
 
     let name = Domain::try_from(b"labelendswithnumber1.bar.com".as_slice()).unwrap();
-    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+    assert_eq!(name.as_str(), "labelendswithnumber1.bar.com");
 
     let name = Domain::try_from(b"labelendswithnumber1.bar.com.".as_slice()).unwrap();
-    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+    assert_eq!(name.as_str(), "labelendswithnumber1.bar.com");
   }
 
   #[test]
@@ -549,10 +453,10 @@ mod tests {
     assert_eq!("localhost", name.as_str());
 
     let name = Domain::from_str("labelendswithnumber1.bar.com").unwrap();
-    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+    assert_eq!(name.as_str(), "labelendswithnumber1.bar.com");
 
     let name = Domain::try_from("labelendswithnumber1.bar.com.").unwrap();
-    assert_eq!(name.to_string().as_str(), "labelendswithnumber1.bar.com");
+    assert_eq!(name.as_str(), "labelendswithnumber1.bar.com");
   }
 
   #[test]

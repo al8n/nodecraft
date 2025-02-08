@@ -3,8 +3,8 @@ use core::fmt::{Debug, Display};
 mod impls;
 use cheap_clone::CheapClone;
 
-#[cfg(feature = "std")]
-pub use impls::{Domain, HostAddr, ParseDomainError, ParseHostAddrError};
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use impls::{Domain, DomainRef, HostAddr, HostAddrRef, ParseDomainError, ParseHostAddrError};
 
 /// Address abstraction for distributed systems
 pub trait Address:
