@@ -158,7 +158,7 @@ mod tests {
 
     let mut set = HashSet::new();
     let id = NodeIdRef::<16>::try_from(b"test".as_slice()).unwrap();
-    set.insert(id.clone());
+    set.insert(id);
     assert!(set.contains("test"));
   }
 

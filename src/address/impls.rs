@@ -37,6 +37,14 @@ pub enum ParseHostAddrError {
 #[error("invalid domain name")]
 pub struct ParseDomainError;
 
+impl ParseDomainError {
+  /// Returns the error message.
+  #[inline]
+  pub const fn as_str(&self) -> &'static str {
+    "invalid domain name"
+  }
+}
+
 #[cfg(any(feature = "std", feature = "alloc"))]
 const fn validate(input: &[u8]) -> Result<(), ParseDomainError> {
   enum State {
@@ -96,4 +104,9 @@ const fn validate(input: &[u8]) -> Result<(), ParseDomainError> {
   }
 
   Ok(())
+}
+
+#[test]
+fn test_error() {
+  assert_eq!(ParseDomainError.as_str(), "invalid domain name");
 }
