@@ -277,7 +277,7 @@ mod tests {
   use smol_str03::SmolStr;
 
   fn random(size: usize) -> Node<SmolStr, u64> {
-    use rand::{rng, Rng};
+    use rand::{Rng, rng};
     let id = rng()
       .sample_iter(Alphanumeric)
       .take(size)

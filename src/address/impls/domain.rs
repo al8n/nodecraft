@@ -1,9 +1,9 @@
-use super::{validate, ParseDomainError};
+use super::{ParseDomainError, validate};
 use std::string::String;
 
 use idna::{
-  uts46::{DnsLength, Hyphens, Uts46},
   AsciiDenyList,
+  uts46::{DnsLength, Hyphens, Uts46},
 };
 use smol_str03::SmolStr;
 
@@ -194,11 +194,7 @@ const _: () = {
         let first_char = if u.arbitrary::<bool>()? {
           // letter
           let c = u.int_in_range(0..=51)?;
-          if c < 26 {
-            b'a' + c
-          } else {
-            b'A' + (c - 26)
-          }
+          if c < 26 { b'a' + c } else { b'A' + (c - 26) }
         } else if u.arbitrary::<bool>()? {
           // number
           u.int_in_range(b'0'..=b'9')?
@@ -235,7 +231,7 @@ const _: () = {
       // Ensure last label isn't numeric-only
       if domain
         .split('.')
-        .last()
+        .next_back()
         .unwrap()
         .chars()
         .all(|c| c.is_ascii_digit())
@@ -296,7 +292,7 @@ const _: () = {
       // Ensure last label isn't numeric-only
       if domain
         .split('.')
-        .last()
+        .next_back()
         .unwrap()
         .chars()
         .all(|c| c.is_ascii_digit())
@@ -352,28 +348,28 @@ mod tests {
     ("labelendswithnumber1.bar.com", true),
     ("xn--bcher-kva.example", true),
     (
-        "sixtythreesixtythreesixtythreesixtythreesixtythreesixtythreesix.com",
-        true,
+      "sixtythreesixtythreesixtythreesixtythreesixtythreesixtythreesix.com",
+      true,
     ),
     (
-        "sixtyfoursixtyfoursixtyfoursixtyfoursixtyfoursixtyfoursixtyfours.com",
-        false,
+      "sixtyfoursixtyfoursixtyfoursixtyfoursixtyfoursixtyfoursixtyfours.com",
+      false,
     ),
     (
-        "012345678901234567890123456789012345678901234567890123456789012.com",
-        true,
+      "012345678901234567890123456789012345678901234567890123456789012.com",
+      true,
     ),
     (
-        "0123456789012345678901234567890123456789012345678901234567890123.com",
-        false,
+      "0123456789012345678901234567890123456789012345678901234567890123.com",
+      false,
     ),
     (
-        "01234567890123456789012345678901234567890123456789012345678901-.com",
-        false,
+      "01234567890123456789012345678901234567890123456789012345678901-.com",
+      false,
     ),
     (
-        "012345678901234567890123456789012345678901234567890123456789012-.com",
-        false,
+      "012345678901234567890123456789012345678901234567890123456789012-.com",
+      false,
     ),
     ("numeric-only-final-label.1", false),
     ("numeric-only-final-label.absolute.1.", false),
@@ -384,8 +380,14 @@ mod tests {
     ("a123b.com", true),
     ("numeric-only-middle-label.4.com", true),
     ("1000-sans.badssl.com", true),
-    ("twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfi", true),
-    ("twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourc", false), 
+    (
+      "twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfi",
+      true,
+    ),
+    (
+      "twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourc",
+      false,
+    ),
     ("测试.com", true),
     ("测试.中国", true),
   ];

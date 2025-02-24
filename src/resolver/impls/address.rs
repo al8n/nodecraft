@@ -2,7 +2,7 @@ use core::time::Duration;
 use std::net::SocketAddr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{address::Domain, HostAddr};
+use crate::{HostAddr, address::Domain};
 
 use crossbeam_skiplist::SkipMap;
 
@@ -63,7 +63,7 @@ pub use resolver::HostAddrResolver;
 mod resolver {
   use super::*;
 
-  use agnostic::{net::ToSocketAddrs, RuntimeLite};
+  use agnostic::{RuntimeLite, net::ToSocketAddrs};
   use either::Either;
 
   /// A resolver which supports both `domain:port` and socket address. However,
@@ -185,20 +185,24 @@ mod resolver {
       let ip_addr = HostAddr::try_from(("127.0.0.1", 8080)).unwrap();
       resolver.resolve(&ip_addr).await.unwrap();
       let dns_name = Domain::try_from("google.com").unwrap();
-      assert!(!resolver
-        .cache
-        .get(dns_name.as_str())
-        .unwrap()
-        .value()
-        .is_expired());
+      assert!(
+        !resolver
+          .cache
+          .get(dns_name.as_str())
+          .unwrap()
+          .value()
+          .is_expired()
+      );
 
       tokio::time::sleep(Duration::from_millis(100)).await;
-      assert!(resolver
-        .cache
-        .get(dns_name.as_str())
-        .unwrap()
-        .value()
-        .is_expired());
+      assert!(
+        resolver
+          .cache
+          .get(dns_name.as_str())
+          .unwrap()
+          .value()
+          .is_expired()
+      );
       resolver.resolve(&google_addr).await.unwrap();
 
       let bad_addr = HostAddr::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();

@@ -1,5 +1,5 @@
 use idna::uts46::{
-  verify_dns_length, AsciiDenyList, DnsLength, ErrorPolicy, Hyphens, ProcessingSuccess, Uts46,
+  AsciiDenyList, DnsLength, ErrorPolicy, Hyphens, ProcessingSuccess, Uts46, verify_dns_length,
 };
 
 use super::{Domain, ParseDomainError};
@@ -235,28 +235,28 @@ mod tests {
     ("labelendswithnumber1.bar.com", true),
     ("xn--bcher-kva.example", true),
     (
-        "sixtythreesixtythreesixtythreesixtythreesixtythreesixtythreesix.com",
-        true,
+      "sixtythreesixtythreesixtythreesixtythreesixtythreesixtythreesix.com",
+      true,
     ),
     (
-        "sixtyfoursixtyfoursixtyfoursixtyfoursixtyfoursixtyfoursixtyfours.com",
-        false,
+      "sixtyfoursixtyfoursixtyfoursixtyfoursixtyfoursixtyfoursixtyfours.com",
+      false,
     ),
     (
-        "012345678901234567890123456789012345678901234567890123456789012.com",
-        true,
+      "012345678901234567890123456789012345678901234567890123456789012.com",
+      true,
     ),
     (
-        "0123456789012345678901234567890123456789012345678901234567890123.com",
-        false,
+      "0123456789012345678901234567890123456789012345678901234567890123.com",
+      false,
     ),
     (
-        "01234567890123456789012345678901234567890123456789012345678901-.com",
-        false,
+      "01234567890123456789012345678901234567890123456789012345678901-.com",
+      false,
     ),
     (
-        "012345678901234567890123456789012345678901234567890123456789012-.com",
-        false,
+      "012345678901234567890123456789012345678901234567890123456789012-.com",
+      false,
     ),
     ("numeric-only-final-label.1", false),
     ("numeric-only-final-label.absolute.1.", false),
@@ -267,8 +267,14 @@ mod tests {
     ("a123b.com", true),
     ("numeric-only-middle-label.4.com", true),
     ("1000-sans.badssl.com", true),
-    ("twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfi", true),
-    ("twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourc", false), 
+    (
+      "twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfi",
+      true,
+    ),
+    (
+      "twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourc",
+      false,
+    ),
     ("测试.com", true),
     ("测试.中国", true),
   ];

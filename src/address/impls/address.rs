@@ -332,7 +332,7 @@ mod tests {
   use core::net::{Ipv4Addr, Ipv6Addr};
 
   use super::*;
-  use rand::{distr::Alphanumeric, rng, Rng, RngCore};
+  use rand::{Rng, RngCore, distr::Alphanumeric, rng};
 
   impl HostAddr {
     fn random_v4_address() -> Self {

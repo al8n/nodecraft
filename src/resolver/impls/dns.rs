@@ -1,11 +1,11 @@
 use core::time::Duration;
 use std::{io, net::SocketAddr};
 
+use agnostic::{Runtime, net::ToSocketAddrs};
 pub use agnostic::{
   dns::{AsyncConnectionProvider, Dns, ResolverConfig, ResolverOpts},
   net::Net,
 };
-use agnostic::{net::ToSocketAddrs, Runtime};
 use crossbeam_skiplist::SkipMap;
 use either::Either;
 
@@ -304,20 +304,24 @@ mod tests {
     let google_addr = HostAddr::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
     let dns_name = Domain::try_from("google.com").unwrap();
-    assert!(!resolver
-      .cache
-      .get(dns_name.as_str())
-      .unwrap()
-      .value()
-      .is_expired());
+    assert!(
+      !resolver
+        .cache
+        .get(dns_name.as_str())
+        .unwrap()
+        .value()
+        .is_expired()
+    );
 
     tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(resolver
-      .cache
-      .get(dns_name.as_str())
-      .unwrap()
-      .value()
-      .is_expired());
+    assert!(
+      resolver
+        .cache
+        .get(dns_name.as_str())
+        .unwrap()
+        .value()
+        .is_expired()
+    );
   }
 
   #[tokio::test]
@@ -337,20 +341,24 @@ mod tests {
     let ip_addr = HostAddr::try_from(("127.0.0.1", 8080)).unwrap();
     resolver.resolve(&ip_addr).await.unwrap();
     let dns_name = Domain::try_from("google.com").unwrap();
-    assert!(!resolver
-      .cache
-      .get(dns_name.as_str())
-      .unwrap()
-      .value()
-      .is_expired());
+    assert!(
+      !resolver
+        .cache
+        .get(dns_name.as_str())
+        .unwrap()
+        .value()
+        .is_expired()
+    );
 
     tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(resolver
-      .cache
-      .get(dns_name.as_str())
-      .unwrap()
-      .value()
-      .is_expired());
+    assert!(
+      resolver
+        .cache
+        .get(dns_name.as_str())
+        .unwrap()
+        .value()
+        .is_expired()
+    );
     resolver.resolve(&google_addr).await.unwrap();
 
     let err = ResolveError::from(ResolveErrorKind::NotFound(dns_name.clone()));
