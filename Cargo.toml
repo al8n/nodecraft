@@ -6,12 +6,12 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.7.9"
+version = "0.7.10"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
-edition = "2021"
-rust-version = "1.81.0"
+edition = "2024"
+rust-version = "1.85.0"
 
 [features]
 default = ["std"]
@@ -73,7 +73,7 @@ rkyv = ["dep:rkyv"]
 tracing = ["dep:tracing"]
 
 [dependencies]
-idna = { version = "1", optional = true, default-features = false, features = ["compiled_data"]}
+idna = { version = "1", optional = true, default-features = false, features = ["compiled_data"] }
 cheap-clone = { version = "0.2", default-features = false, features = [
   "smol_str03",
 ] }

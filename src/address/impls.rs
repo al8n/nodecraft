@@ -35,8 +35,10 @@ pub enum ParseHostAddrError {
 /// it is not a syntactically-valid DNS Domain.
 #[derive(Debug, thiserror::Error)]
 #[error("invalid domain name")]
+#[cfg(any(feature = "std", feature = "alloc"))]
 pub struct ParseDomainError;
 
+#[cfg(any(feature = "std", feature = "alloc"))]
 impl ParseDomainError {
   /// Returns the error message.
   #[inline]
@@ -79,7 +81,7 @@ const fn validate(input: &[u8]) -> Result<(), ParseDomainError> {
       (Subsequent { .. }, b'.') => Next,
       (NumericOnly { .. }, b'.') => NextAfterNumericOnly,
       (Subsequent { len } | NumericOnly { len } | Hyphen { len }, _) if len >= MAX_LABEL_LENGTH => {
-        return Err(ParseDomainError)
+        return Err(ParseDomainError);
       }
       (Start | Next | NextAfterNumericOnly, b'0'..=b'9') => NumericOnly { len: 1 },
       (NumericOnly { len }, b'0'..=b'9') => NumericOnly { len: len + 1 },
