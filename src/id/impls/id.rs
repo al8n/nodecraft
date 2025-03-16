@@ -1,6 +1,9 @@
-use core::borrow::Borrow;
+use core::{
+  borrow::Borrow,
+  net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+};
 
-use smol_str03::SmolStr;
+use smol_str03::{SmolStr, ToSmolStr};
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use std::{string::String, vec::Vec};
@@ -51,6 +54,60 @@ impl<const N: usize> NodeId<N> {
   /// To convert the byte slice back into a string slice, use the [`core::str::from_utf8`] function.
   pub fn as_bytes(&self) -> &[u8] {
     self.0.as_bytes()
+  }
+}
+
+impl<const N: usize> TryFrom<SocketAddr> for NodeId<N> {
+  type Error = ParseNodeIdError;
+
+  fn try_from(value: SocketAddr) -> Result<Self, Self::Error> {
+    match value {
+      SocketAddr::V4(v4) => v4.try_into(),
+      SocketAddr::V6(v6) => v6.try_into(),
+    }
+  }
+}
+
+impl<const N: usize> TryFrom<SocketAddrV4> for NodeId<N> {
+  type Error = ParseNodeIdError;
+
+  fn try_from(value: SocketAddrV4) -> Result<Self, Self::Error> {
+    Self::new(value.to_smolstr())
+  }
+}
+
+impl<const N: usize> TryFrom<SocketAddrV6> for NodeId<N> {
+  type Error = ParseNodeIdError;
+
+  fn try_from(value: SocketAddrV6) -> Result<Self, Self::Error> {
+    Self::new(value.to_smolstr())
+  }
+}
+
+impl<const N: usize> TryFrom<IpAddr> for NodeId<N> {
+  type Error = ParseNodeIdError;
+
+  fn try_from(value: IpAddr) -> Result<Self, Self::Error> {
+    match value {
+      IpAddr::V4(v4) => v4.try_into(),
+      IpAddr::V6(v6) => v6.try_into(),
+    }
+  }
+}
+
+impl<const N: usize> TryFrom<Ipv6Addr> for NodeId<N> {
+  type Error = ParseNodeIdError;
+
+  fn try_from(value: Ipv6Addr) -> Result<Self, Self::Error> {
+    Self::new(value.to_smolstr())
+  }
+}
+
+impl<const N: usize> TryFrom<Ipv4Addr> for NodeId<N> {
+  type Error = ParseNodeIdError;
+
+  fn try_from(value: Ipv4Addr) -> Result<Self, Self::Error> {
+    Self::new(value.to_smolstr())
   }
 }
 
@@ -265,5 +322,15 @@ mod tests {
     let serialized = serde_json::to_string(&node).unwrap();
     let deserialized: NodeId = serde_json::from_str(&serialized).unwrap();
     node == deserialized
+  }
+
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_ip_addr(node: IpAddr) -> bool {
+    NodeId::<256>::try_from(node).is_ok()
+  }
+
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_socket_addr(node: SocketAddr) -> bool {
+    NodeId::<256>::try_from(node).is_ok()
   }
 }
