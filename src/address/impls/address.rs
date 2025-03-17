@@ -502,8 +502,8 @@ mod tests {
   #[cfg(feature = "serde")]
   #[quickcheck_macros::quickcheck]
   fn fuzzy_serde(node: HostAddr) -> bool {
-    let serialized = bincode::serialize(&node).unwrap();
-    let deserialized: HostAddr = bincode::deserialize(&serialized).unwrap();
+    let serialized = rmp_serde::to_vec(&node).unwrap();
+    let deserialized: HostAddr = rmp_serde::from_slice(&serialized).unwrap();
     node == deserialized
   }
 }
