@@ -328,6 +328,7 @@ mod tests {
   #[cfg(any(feature = "alloc", feature = "std"))]
   static TESTS: &[(&str, bool)] = &[
     ("", false),
+    (".", true),
     ("localhost", true),
     ("LOCALHOST", true),
     (".localhost", false),
@@ -375,6 +376,8 @@ mod tests {
     ("numeric-only-final-label.absolute.1.", false),
     ("1starts-with-number.com", true),
     ("1Starts-with-number.com", true),
+    ("-example.com", false),
+    ("example-.com", false),
     ("1.2.3.4.com", true),
     ("123.numeric-only-first-label", true),
     ("a123b.com", true),
@@ -384,6 +387,7 @@ mod tests {
       "twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfiftythreecharacters.twohundredandfi",
       true,
     ),
+    ("123.", false),
     (
       "twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourc",
       false,

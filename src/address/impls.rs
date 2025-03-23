@@ -69,8 +69,12 @@ const fn validate(input: &[u8]) -> Result<(), ParseDomainError> {
   const MAX_NAME_LENGTH: usize = 253;
 
   let len = input.len();
-  if input.len() > MAX_NAME_LENGTH {
+  if len > MAX_NAME_LENGTH || len == 0 {
     return Err(ParseDomainError);
+  }
+
+  if input[0] == b'.' && len == 1 {
+    return Ok(());
   }
 
   let mut i = 0;
