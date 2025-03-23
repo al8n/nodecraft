@@ -160,7 +160,7 @@ impl<'a> TryFrom<&'a [u8]> for DomainRef<'a> {
     let mut sink = Sinker::new();
     let result = uts46.process(
       domain,
-      AsciiDenyList::EMPTY,
+      AsciiDenyList::URL,
       Hyphens::Allow,
       ErrorPolicy::FailFast,
       |_, _, _| false, // Force ToASCII processing
@@ -277,6 +277,7 @@ mod tests {
     ),
     ("测试.com", true),
     ("测试.中国", true),
+    ("测试@测试.中国", false),
   ];
 
   #[cfg(any(feature = "alloc", feature = "std"))]

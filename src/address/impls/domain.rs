@@ -109,7 +109,7 @@ impl Domain {
       let valid_domain = Uts46::new()
         .to_ascii(
           domain,
-          AsciiDenyList::EMPTY,
+          AsciiDenyList::URL,
           Hyphens::Allow,
           DnsLength::VerifyAllowRootDot,
         )
@@ -392,8 +392,10 @@ mod tests {
       "twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourcharacters.twohundredandfiftyfourc",
       false,
     ),
+    ("abc@abc.com", false),
     ("测试.com", true),
     ("测试.中国", true),
+    ("测试@测试.中国", false),
   ];
 
   #[cfg(any(feature = "alloc", feature = "std"))]
