@@ -90,7 +90,7 @@ humantime-serde = { version = "1", default-features = false, optional = true }
 
 smol_str03 = { package = "smol_str", version = "0.3", default-features = false, optional = true }
 
-hickory-resolver = { version = "0.24", default-features = false, optional = true }
+hickory-resolver = { version = "0.25", default-features = false, optional = true }
 crossbeam-skiplist = { version = "0.1", optional = true }
 
 tracing = { version = "0.1", optional = true }
