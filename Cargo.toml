@@ -30,6 +30,8 @@ std = [
 # enable runtime agnostic features
 agnostic = ["dep:agnostic", "async", "std"]
 
+hostaddr = ["dep:hostaddr", "smol_str_0_3", "cheap-clone/smol_str_0_3"]
+
 # enable async features
 async = ["dep:futures", "std"]
 
