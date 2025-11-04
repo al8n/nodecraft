@@ -274,7 +274,7 @@ mod tests {
   use super::*;
   use arbitrary::{Arbitrary, Unstructured};
   use rand::distr::Alphanumeric;
-  use smol_str03::SmolStr;
+  use smol_str_0_3::SmolStr;
 
   fn random(size: usize) -> Node<SmolStr, u64> {
     use rand::{Rng, rng};

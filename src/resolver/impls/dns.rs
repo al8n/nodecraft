@@ -7,10 +7,11 @@ pub use agnostic::{
   net::Net,
 };
 use crossbeam_skiplist::SkipMap;
-use either::Either;
+use smol_str_0_3::format_smolstr;
 
 use super::{super::AddressResolver, CachedSocketAddr};
 use crate::{Domain, HostAddr};
+use hostaddr::Host;
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
@@ -226,11 +227,18 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
   }
 
   async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
-    match address.as_inner() {
-      Either::Left(addr) => Ok(addr),
-      Either::Right((port, name)) => {
+    let Some(port) = address.port() else {
+      return Err(
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "address missing port").into(),
+      );
+    };
+    let address: hostaddr::HostAddr<&Domain> = address.into();
+    let host = address.host();
+    match host {
+      Host::Ip(ip) => Ok(SocketAddr::new(*ip, port)),
+      Host::Domain(name) => {
         // First, check cache
-        if let Some(ent) = self.cache.get(name.as_str()) {
+        if let Some(ent) = self.cache.get(name.as_inner()) {
           let val = ent.value();
           if !val.is_expired() {
             return Ok(val.val);
@@ -240,36 +248,42 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
         }
 
         // Second, TCP lookup ip address
+        let fqdn = if name.as_inner().ends_with('.') {
+          name.as_inner().clone()
+        } else {
+          format_smolstr!("{}.", name.as_inner())
+        };
         if let Some(ref dns) = self.dns {
           if let Some(ip) = dns
-            .lookup_ip(name.fqdn_str())
+            .lookup_ip(fqdn.as_str())
             .await
             .map_err(|e| ResolveError::from(ResolveErrorKind::from(e)))?
             .into_iter()
             .next()
           {
             let addr = SocketAddr::new(ip, port);
-            self
-              .cache
-              .insert(name.clone(), CachedSocketAddr::new(addr, self.record_ttl));
+            self.cache.insert(
+              (*name).clone(),
+              CachedSocketAddr::new(addr, self.record_ttl),
+            );
             return Ok(addr);
           }
         }
 
         // Finally, try to find the socket addr locally
-        let tsafe = name.clone();
 
-        let res = ToSocketAddrs::<R>::to_socket_addrs(&(tsafe.as_str(), port)).await?;
+        let res = ToSocketAddrs::<R>::to_socket_addrs(&(name.as_inner().as_str(), port)).await?;
 
         if let Some(addr) = res.into_iter().next() {
-          self
-            .cache
-            .insert(name.clone(), CachedSocketAddr::new(addr, self.record_ttl));
+          self.cache.insert(
+            (*name).clone(),
+            CachedSocketAddr::new(addr, self.record_ttl),
+          );
           return Ok(addr);
         }
 
         Err(Error::Resolve(ResolveError(ResolveErrorKind::NotFound(
-          name.clone(),
+          (*name).clone(),
         ))))
       }
     }
@@ -304,24 +318,10 @@ mod tests {
     let google_addr = HostAddr::try_from("google.com:8080").unwrap();
     resolver.resolve(&google_addr).await.unwrap();
     let dns_name = Domain::try_from("google.com").unwrap();
-    assert!(
-      !resolver
-        .cache
-        .get(dns_name.as_str())
-        .unwrap()
-        .value()
-        .is_expired()
-    );
+    assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
 
     tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(
-      resolver
-        .cache
-        .get(dns_name.as_str())
-        .unwrap()
-        .value()
-        .is_expired()
-    );
+    assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
   }
 
   #[tokio::test]
@@ -341,24 +341,10 @@ mod tests {
     let ip_addr = HostAddr::try_from(("127.0.0.1", 8080)).unwrap();
     resolver.resolve(&ip_addr).await.unwrap();
     let dns_name = Domain::try_from("google.com").unwrap();
-    assert!(
-      !resolver
-        .cache
-        .get(dns_name.as_str())
-        .unwrap()
-        .value()
-        .is_expired()
-    );
+    assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
 
     tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(
-      resolver
-        .cache
-        .get(dns_name.as_str())
-        .unwrap()
-        .value()
-        .is_expired()
-    );
+    assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
     resolver.resolve(&google_addr).await.unwrap();
 
     let err = ResolveError::from(ResolveErrorKind::NotFound(dns_name.clone()));
