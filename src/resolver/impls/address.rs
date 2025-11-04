@@ -1,4 +1,4 @@
-use core::{time::Duration, net::SocketAddr};
+use core::{net::SocketAddr, time::Duration};
 
 use super::{super::AddressResolver, CachedSocketAddr};
 use crate::address::{Domain, HostAddr};
@@ -63,7 +63,7 @@ mod resolver {
   use super::*;
 
   use agnostic::{RuntimeLite, net::ToSocketAddrs};
-  use either::Either;
+  use hostaddr::Host;
 
   /// A resolver which supports both `domain:port` and socket address. However,
   /// it will only use [`ToSocketAddrs`](std::net::ToSocketAddrs)
@@ -111,11 +111,19 @@ mod resolver {
     }
 
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
-      match address.as_ref() {
-        Either::Left(addr) => Ok(addr),
-        Either::Right((port, name)) => {
+      let Some(port) = address.port() else {
+        return Err(std::io::Error::new(
+          std::io::ErrorKind::InvalidInput,
+          "address missing port",
+        ));
+      };
+      let address: hostaddr::HostAddr<&Domain> = address.into();
+      let host = address.host();
+      match host {
+        Host::Ip(ip) => Ok(SocketAddr::new(*ip, port)),
+        Host::Domain(name) => {
           // First, check cache
-          if let Some(ent) = self.cache.get(name.as_str()) {
+          if let Some(ent) = self.cache.get(name.as_inner()) {
             let val = ent.value();
             if !val.is_expired() {
               return Ok(val.val);
@@ -125,21 +133,21 @@ mod resolver {
           }
 
           // Finally, try to find the socket addr locally
-          let tsafe = name.clone();
-
           let res =
-            ToSocketAddrs::<Self::Runtime>::to_socket_addrs(&(tsafe.as_str(), port)).await?;
+            ToSocketAddrs::<Self::Runtime>::to_socket_addrs(&(name.as_inner().as_str(), port))
+              .await?;
 
           if let Some(addr) = res.into_iter().next() {
-            self
-              .cache
-              .insert(name.clone(), CachedSocketAddr::new(addr, self.record_ttl));
+            self.cache.insert(
+              (*name).clone(),
+              CachedSocketAddr::new(addr, self.record_ttl),
+            );
             return Ok(addr);
           }
 
           Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!("failed to resolve {}", name.as_str()),
+            format!("failed to resolve {}", name.as_inner().as_str()),
           ))
         }
       }
@@ -184,24 +192,10 @@ mod resolver {
       let ip_addr = HostAddr::try_from(("127.0.0.1", 8080)).unwrap();
       resolver.resolve(&ip_addr).await.unwrap();
       let dns_name = Domain::try_from("google.com").unwrap();
-      assert!(
-        !resolver
-          .cache
-          .get(dns_name.as_str())
-          .unwrap()
-          .value()
-          .is_expired()
-      );
+      assert!(!resolver.cache.get(&dns_name).unwrap().value().is_expired());
 
       tokio::time::sleep(Duration::from_millis(100)).await;
-      assert!(
-        resolver
-          .cache
-          .get(dns_name.as_str())
-          .unwrap()
-          .value()
-          .is_expired()
-      );
+      assert!(resolver.cache.get(&dns_name).unwrap().value().is_expired());
       resolver.resolve(&google_addr).await.unwrap();
 
       let bad_addr = HostAddr::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();
