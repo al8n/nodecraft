@@ -3,7 +3,7 @@ use core::{
   net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
 };
 
-use smol_str03::{SmolStr, ToSmolStr};
+use smol_str_0_3::{SmolStr, ToSmolStr};
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use std::{string::String, vec::Vec};

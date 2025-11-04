@@ -85,7 +85,7 @@ impl<'a> DomainRef<'a> {
             DnsLength::VerifyAllowRootDot,
           )
           .expect("DomainRef must be valid a internationalized domain name");
-        Domain(smol_str03::SmolStr::from(res))
+        Domain(smol_str_0_3::SmolStr::from(res))
       }
       (true, false) => Domain(self.data.into()),
       (false, true) => {
@@ -97,9 +97,9 @@ impl<'a> DomainRef<'a> {
             DnsLength::VerifyAllowRootDot,
           )
           .expect("DomainRef must be valid a internationalized domain name");
-        Domain(smol_str03::format_smolstr!("{}.", res))
+        Domain(smol_str_0_3::format_smolstr!("{}.", res))
       }
-      (false, false) => Domain(smol_str03::format_smolstr!("{}.", self.data)),
+      (false, false) => Domain(smol_str_0_3::format_smolstr!("{}.", self.data)),
     }
   }
 }

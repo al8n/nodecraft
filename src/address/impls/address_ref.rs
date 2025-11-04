@@ -68,13 +68,13 @@ impl serde::Serialize for HostAddrRef<'_> {
   where
     S: serde::Serializer,
   {
-    use smol_str03::ToSmolStr;
+    use smol_str_0_3::ToSmolStr;
     match &self.kind {
       Repr::Ip(ip) => SocketAddr::new(*ip, self.port)
         .to_smolstr()
         .serialize(serializer),
       Repr::DomainRef(name) => {
-        let s = smol_str03::format_smolstr!("{}:{}", name.as_str(), self.port);
+        let s = smol_str_0_3::format_smolstr!("{}:{}", name.as_str(), self.port);
         s.serialize(serializer)
       }
     }

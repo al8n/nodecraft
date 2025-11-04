@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.7.12"
+version = "0.8.0"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -16,12 +16,12 @@ rust-version = "1.85.0"
 [features]
 default = ["std"]
 full = ["std", "agnostic", "dns", "resolver", "serde", "tracing"]
-alloc = ["smol_str03", "cheap-clone/alloc", "idna/alloc"]
+alloc = ["smol_str_0_3", "cheap-clone/alloc", "idna/alloc"]
 std = [
   "idna/std",
   "cheap-clone/std",
   "either/default",
-  "smol_str03/std",
+  "smol_str_0_3/std",
   "thiserror/std",
   "serde?/std",
   "humantime-serde",
@@ -55,15 +55,15 @@ dnssec-openssl = ["dns", "agnostic/dnssec-openssl"]
 dnssec-ring = ["dnssec", "agnostic/dnssec-ring"]
 dnssec = ["dns", "agnostic/dnssec"]
 
-smol_str03 = ["dep:smol_str03", "cheap-clone/smol_str03", "rkyv?/smol_str-0_3"]
-triomphe01 = ["cheap-clone/triomphe01"]
+smol_str_0_3 = ["dep:smol_str_0_3", "cheap-clone/smol_str_0_3", "rkyv?/smol_str-0_3"]
+triomphe_0_1 = ["cheap-clone/triomphe_0_1"]
 
 # enable node address resolver
 resolver = ["async", "agnostic/net", "crossbeam-skiplist/default", "std"]
 
 serde = [
   "dep:serde",
-  "smol_str03?/serde",
+  "smol_str_0_3?/serde",
   "humantime-serde",
   "hickory-resolver?/serde-config",
 ]
@@ -74,12 +74,12 @@ tracing = ["dep:tracing"]
 
 [dependencies]
 idna = { version = "1", optional = true, default-features = false, features = ["compiled_data"] }
-cheap-clone = { version = "0.2", default-features = false, features = [
-  "smol_str03",
+cheap-clone = { version = "0.3", default-features = false, features = [
+  "smol_str_0_3",
 ] }
 either = { version = "1", default-features = false }
 
-agnostic = { version = "0.7", default-features = false, optional = true }
+agnostic = { version = "0.8", default-features = false, optional = true }
 byteorder = "1"
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "2", default-features = false }
@@ -88,7 +88,7 @@ serde = { version = "1", default-features = false, optional = true, features = [
 ] }
 humantime-serde = { version = "1", default-features = false, optional = true }
 
-smol_str03 = { package = "smol_str", version = "0.3", default-features = false, optional = true }
+smol_str_0_3 = { package = "smol_str", version = "0.3", default-features = false, optional = true }
 
 hickory-resolver = { version = "0.24", default-features = false, optional = true }
 crossbeam-skiplist = { version = "0.1", optional = true }
@@ -105,7 +105,7 @@ tokio = { version = "1", features = ["full"] }
 rand = "0.9"
 serde_json = "1"
 rmp-serde = "1"
-agnostic = { version = "0.7", features = ["tokio"] }
+agnostic = { version = "0.8", features = ["tokio"] }
 arbitrary = "1"
 quickcheck = "1"
 quickcheck_macros = "1"

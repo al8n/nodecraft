@@ -5,7 +5,7 @@ use idna::{
   AsciiDenyList,
   uts46::{DnsLength, Hyphens, Uts46},
 };
-use smol_str03::SmolStr;
+use smol_str_0_3::SmolStr;
 
 /// A type which encapsulates a string that is a syntactically domain name.
 #[derive(Clone, Debug, Eq)]
@@ -104,7 +104,7 @@ impl Domain {
         return Ok(Self(domain.into()));
       }
 
-      Ok(Domain(smol_str03::format_smolstr!("{}.", domain)))
+      Ok(Domain(smol_str_0_3::format_smolstr!("{}.", domain)))
     } else {
       let valid_domain = Uts46::new()
         .to_ascii(
@@ -119,7 +119,7 @@ impl Domain {
         return Ok(Self(valid_domain.into()));
       }
 
-      Ok(Self(smol_str03::format_smolstr!("{}.", valid_domain)))
+      Ok(Self(smol_str_0_3::format_smolstr!("{}.", valid_domain)))
     }
   }
 }
