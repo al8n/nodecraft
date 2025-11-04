@@ -11,6 +11,7 @@ use either::Either;
 
 use super::{super::AddressResolver, CachedSocketAddr};
 use crate::{Domain, HostAddr};
+use hostaddr::Host;
 
 #[derive(Debug, thiserror::Error)]
 enum ResolveErrorKind {
@@ -226,11 +227,11 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
   }
 
   async fn resolve(&self, address: &Self::Address) -> Result<Self::ResolvedAddress, Self::Error> {
-    match address.as_inner() {
-      Either::Left(addr) => Ok(addr),
-      Either::Right((port, name)) => {
+    match address.host() {
+      Host::Ip(addr) => Ok(addr),
+      Host::Domain(name) => {
         // First, check cache
-        if let Some(ent) = self.cache.get(name.as_str()) {
+        if let Some(ent) = self.cache.get(name) {
           let val = ent.value();
           if !val.is_expired() {
             return Ok(val.val);
@@ -307,7 +308,7 @@ mod tests {
     assert!(
       !resolver
         .cache
-        .get(dns_name.as_str())
+        .get(dns_name.as_ref())
         .unwrap()
         .value()
         .is_expired()

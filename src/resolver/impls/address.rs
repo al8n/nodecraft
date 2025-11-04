@@ -1,8 +1,7 @@
-use core::time::Duration;
-use std::net::SocketAddr;
+use core::{time::Duration, net::SocketAddr};
 
 use super::{super::AddressResolver, CachedSocketAddr};
-use crate::{HostAddr, address::Domain};
+use crate::address::{Domain, HostAddr};
 
 use crossbeam_skiplist::SkipMap;
 
@@ -112,7 +111,7 @@ mod resolver {
     }
 
     async fn resolve(&self, address: &Self::Address) -> Result<SocketAddr, Self::Error> {
-      match address.as_inner() {
+      match address.as_ref() {
         Either::Left(addr) => Ok(addr),
         Either::Right((port, name)) => {
           // First, check cache
