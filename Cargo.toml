@@ -60,7 +60,7 @@ smol_str_0_3 = ["dep:smol_str_0_3", "cheap-clone/smol_str_0_3", "rkyv?/smol_str-
 triomphe_0_1 = ["cheap-clone/triomphe_0_1"]
 
 # enable node address resolver
-resolver = ["async", "agnostic/net", "crossbeam-skiplist/default", "std"]
+resolver = ["async", "agnostic/net", "crossbeam-skiplist/default", "std", "hostaddr"]
 
 serde = [
   "dep:serde",
