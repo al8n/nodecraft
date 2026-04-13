@@ -284,19 +284,19 @@ const _: () = {
 
 #[cfg(all(any(feature = "std", feature = "alloc"), test))]
 mod tests {
+  #[allow(unused_imports)]
   use super::*;
-  use rand::distr::Alphanumeric;
-  use smol_str_0_3::SmolStr;
 
-  fn random(size: usize) -> Node<SmolStr, u64> {
-    use rand::{RngExt, rng};
+  #[cfg(feature = "serde")]
+  fn random(size: usize) -> Node<smol_str_0_3::SmolStr, u64> {
+    use rand::{RngExt, distr::Alphanumeric, rng};
     let id = rng()
       .sample_iter(Alphanumeric)
       .take(size)
       .collect::<Vec<u8>>();
 
     Node::new(
-      SmolStr::from(String::from_utf8(id).unwrap()),
+      smol_str_0_3::SmolStr::from(String::from_utf8(id).unwrap()),
       rng().random(),
     )
   }
@@ -341,16 +341,16 @@ mod tests {
   fn test_serde() {
     let node = random(10);
     let serialized = serde_json::to_string(&node).unwrap();
-    let deserialized: Node<SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
+    let deserialized: Node<smol_str_0_3::SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(node, deserialized);
 
     let node = random(100);
     let serialized = serde_json::to_string(&node).unwrap();
-    let deserialized: Node<SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
+    let deserialized: Node<smol_str_0_3::SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(node, deserialized);
   }
 
-  #[cfg(feature = "serde")]
+  #[cfg(all(feature = "serde", feature = "quickcheck"))]
   #[quickcheck_macros::quickcheck]
   fn fuzzy_serde(node: Node<String, u64>) -> bool {
     let serialized = serde_json::to_string(&node).unwrap();

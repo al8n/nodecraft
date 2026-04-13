@@ -154,7 +154,7 @@ mod tests {
   }
 
   #[test]
-  #[cfg(any(feature = "std", feature = "alloc"))]
+  #[cfg(feature = "std")]
   fn test_borrow() {
     use std::collections::HashSet;
 
