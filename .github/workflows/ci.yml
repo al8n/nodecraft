@@ -81,6 +81,35 @@ jobs:
     - name: Run build
       run: cargo hack build --feature-powerset --group-features dns,quic-ring,quic-aws-lc-rs,h3-ring,h3-aws-lc-rs,https-ring,https-aws-lc-rs,tls-ring,tls-aws-lc-rs,webpki-roots,rustls-platform-verifier,dnssec-ring,dnssec-aws-lc-rs --exclude-features tracing
   
+  test:
+    name: test
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v6
+    - name: Cache cargo build and registry
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-test-
+    - name: Install Rust
+      # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+      run: rustup update stable --no-self-update && rustup default stable
+    - name: Install cargo-hack
+      run: cargo install cargo-hack
+    - name: Run test
+      run: cargo hack test --feature-powerset --group-features dns,quic-ring,quic-aws-lc-rs,h3-ring,h3-aws-lc-rs,https-ring,https-aws-lc-rs,tls-ring,tls-aws-lc-rs,webpki-roots,rustls-platform-verifier,dnssec-ring,dnssec-aws-lc-rs --exclude-features tracing
+  
   coverage:
     name: coverage
     runs-on: ubuntu-latest
