@@ -18,7 +18,7 @@ enum ResolveErrorKind {
   #[error("cannot resolve an ip address for {0}")]
   NotFound(Domain),
   #[error(transparent)]
-  Resolve(#[from] hickory_resolver::error::ResolveError),
+  Resolve(#[from] hickory_resolver::ResolveError),
 }
 
 /// The error type for errors that get returned when resolving fails
@@ -211,11 +211,11 @@ impl<R: Runtime> AddressResolver for DnsResolver<R> {
     Self: Sized,
   {
     let dns = if let Some(opts) = opts.dns {
-      Some(Dns::new(
-        opts.resolver_config,
-        opts.resolver_opts,
-        AsyncConnectionProvider::new(),
-      ))
+      Some(
+        Dns::builder_with_config(opts.resolver_config, AsyncConnectionProvider::new())
+          .with_options(opts.resolver_opts)
+          .build(),
+      )
     } else {
       None
     };
@@ -303,6 +303,7 @@ mod tests {
       .unwrap();
     let google_addr = HostAddr::try_from("google.com:8080").unwrap();
     let ip = resolver.resolve(&google_addr).await.unwrap();
+    #[cfg(feature = "std")]
     println!("google.com:8080 resolved to: {}", ip);
   }
 
@@ -348,7 +349,9 @@ mod tests {
     resolver.resolve(&google_addr).await.unwrap();
 
     let err = ResolveError::from(ResolveErrorKind::NotFound(dns_name.clone()));
+    #[cfg(feature = "std")]
     println!("{err}");
+    #[cfg(feature = "std")]
     println!("{err:?}");
 
     let bad_addr = HostAddr::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();

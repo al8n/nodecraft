@@ -245,13 +245,13 @@ const _: () = {
 mod tests {
   use core::str::FromStr;
 
-  use rand::{distr::Alphanumeric, rng};
-
   use super::*;
 
+  #[cfg(feature = "serde")]
   impl NodeId {
     fn random(size: usize) -> Self {
-      use rand::Rng;
+      use rand::{RngExt, distr::Alphanumeric, rng};
+
       let id = rng()
         .sample_iter(Alphanumeric)
         .take(size)
@@ -267,12 +267,15 @@ mod tests {
     assert_eq!(id.as_str(), "test");
     assert_eq!(id.as_ref(), "test");
     assert_eq!(id.as_bytes(), b"test");
+    #[cfg(feature = "std")]
     println!("{id}");
+    #[cfg(feature = "std")]
     println!("{id:?}");
 
     let _id = NodeId::<16>::from_str("test1").unwrap();
 
     assert!(NodeId::<20>::new("").is_err());
+    #[cfg(any(feature = "std", feature = "alloc"))]
     assert!(NodeId::<512>::new("a".repeat(513)).is_err());
   }
 
@@ -297,7 +300,7 @@ mod tests {
   }
 
   #[test]
-  #[cfg(any(feature = "std", feature = "alloc"))]
+  #[cfg(feature = "std")]
   fn test_borrow() {
     use std::collections::HashSet;
 
@@ -316,7 +319,7 @@ mod tests {
     assert_eq!(id, decoded);
   }
 
-  #[cfg(feature = "serde")]
+  #[cfg(all(feature = "serde", feature = "quickcheck"))]
   #[quickcheck_macros::quickcheck]
   fn fuzzy_serde(node: NodeId) -> bool {
     let serialized = serde_json::to_string(&node).unwrap();

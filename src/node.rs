@@ -82,6 +82,18 @@ impl<I, A> Node<I, A> {
     (self.id, self.address)
   }
 
+  /// Consumes the node and returns the id of the node.
+  #[inline]
+  pub fn into_id(self) -> I {
+    self.id
+  }
+
+  /// Consumes the node and returns the address of the node.
+  #[inline]
+  pub fn into_address(self) -> A {
+    self.address
+  }
+
   /// Maps an `Node<I, A>` to `Node<I, U>` by applying a function to the current node.
   ///
   /// # Example
@@ -92,6 +104,7 @@ impl<I, A> Node<I, A> {
   /// let node = Node::new("test", 100u64);
   /// let node = node.map_address(|address| address.to_string());
   /// assert_eq!(node.address(), "100");
+  /// ```
   #[inline]
   pub fn map_address<U>(self, f: impl FnOnce(A) -> U) -> Node<I, U> {
     Node {
@@ -271,26 +284,28 @@ const _: () = {
 
 #[cfg(all(any(feature = "std", feature = "alloc"), test))]
 mod tests {
+  #[allow(unused_imports)]
   use super::*;
-  use arbitrary::{Arbitrary, Unstructured};
-  use rand::distr::Alphanumeric;
-  use smol_str_0_3::SmolStr;
 
-  fn random(size: usize) -> Node<SmolStr, u64> {
-    use rand::{Rng, rng};
+  #[cfg(feature = "serde")]
+  fn random(size: usize) -> Node<smol_str_0_3::SmolStr, u64> {
+    use rand::{RngExt, distr::Alphanumeric, rng};
     let id = rng()
       .sample_iter(Alphanumeric)
       .take(size)
       .collect::<Vec<u8>>();
 
     Node::new(
-      SmolStr::from(String::from_utf8(id).unwrap()),
+      smol_str_0_3::SmolStr::from(String::from_utf8(id).unwrap()),
       rng().random(),
     )
   }
 
   #[test]
+  #[cfg(feature = "arbitrary")]
   fn test_node_access() {
+    use arbitrary::{Arbitrary, Unstructured};
+
     let mut data = vec![0; 1024];
     rand::fill(&mut data[..]);
     let mut data = Unstructured::new(&data);
@@ -315,6 +330,9 @@ mod tests {
     let node = Node::from(("test3", 300));
     assert_eq!(*node.id(), "test3");
     assert_eq!(node.address(), &300);
+    assert_eq!(node.into_id(), "test3");
+    assert_eq!(node.into_address(), 300);
+    #[cfg(feature = "std")]
     println!("{}", node);
   }
 
@@ -323,16 +341,16 @@ mod tests {
   fn test_serde() {
     let node = random(10);
     let serialized = serde_json::to_string(&node).unwrap();
-    let deserialized: Node<SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
+    let deserialized: Node<smol_str_0_3::SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(node, deserialized);
 
     let node = random(100);
     let serialized = serde_json::to_string(&node).unwrap();
-    let deserialized: Node<SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
+    let deserialized: Node<smol_str_0_3::SmolStr, u64> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(node, deserialized);
   }
 
-  #[cfg(feature = "serde")]
+  #[cfg(all(feature = "serde", feature = "quickcheck"))]
   #[quickcheck_macros::quickcheck]
   fn fuzzy_serde(node: Node<String, u64>) -> bool {
     let serialized = serde_json::to_string(&node).unwrap();
