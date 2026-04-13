@@ -25,21 +25,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Check formatting
+  # Check formatting (platform-independent, one OS is enough)
   rustfmt:
     name: rustfmt
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
     - name: Install Rust
-      # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
-      run: rustup update nightly --no-self-update && rustup default nightly && rustup component add rustfmt
+      run: rustup update stable && rustup default stable && rustup component add rustfmt
     - name: Check formatting
       run: cargo fmt --all -- --check
 
