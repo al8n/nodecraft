@@ -303,6 +303,7 @@ mod tests {
       .unwrap();
     let google_addr = HostAddr::try_from("google.com:8080").unwrap();
     let ip = resolver.resolve(&google_addr).await.unwrap();
+    #[cfg(feature = "std")]
     println!("google.com:8080 resolved to: {}", ip);
   }
 
@@ -348,7 +349,9 @@ mod tests {
     resolver.resolve(&google_addr).await.unwrap();
 
     let err = ResolveError::from(ResolveErrorKind::NotFound(dns_name.clone()));
+    #[cfg(feature = "std")]
     println!("{err}");
+    #[cfg(feature = "std")]
     println!("{err:?}");
 
     let bad_addr = HostAddr::try_from("adasdjkljasidjaosdjaisudnaisudibasd.com:8080").unwrap();

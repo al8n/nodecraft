@@ -122,7 +122,9 @@ mod tests {
     assert_eq!(id.as_str(), "test");
     assert_eq!(id.as_ref(), "test");
     assert_eq!(id.as_bytes(), b"test");
+    #[cfg(feature = "std")]
     println!("{id}");
+    #[cfg(feature = "std")]
     println!("{id:?}");
 
     let _id = NodeIdRef::<16>::try_from("test1").unwrap();

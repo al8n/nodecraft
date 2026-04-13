@@ -330,6 +330,7 @@ mod tests {
     assert_eq!(node.address(), &300);
     assert_eq!(node.into_id(), "test3");
     assert_eq!(node.into_address(), 300);
+    #[cfg(feature = "std")]
     println!("{}", node);
   }
 

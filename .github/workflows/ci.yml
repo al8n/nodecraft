@@ -79,7 +79,7 @@ jobs:
         path: ~/.cargo
         key: ${{ runner.os }}-coverage-dotcargo
     - name: Run build
-      run: cargo hack build --feature-powerset --group-features dns,quic-ring,quic-aws-lc-rs,h3-ring,h3-aws-lc-rs,https-ring,https-aws-lc-rs,tls-ring,tls-aws-lc-rs,webpki-roots,rustls-platform-verifier,dnssec-ring,dnssec-aws-lc-rs --exclude-features tracing
+      run: cargo hack build --each-feature
   
   test:
     name: test
@@ -108,7 +108,7 @@ jobs:
     - name: Install cargo-hack
       run: cargo install cargo-hack
     - name: Run test
-      run: cargo hack test --feature-powerset --group-features dns,quic-ring,quic-aws-lc-rs,h3-ring,h3-aws-lc-rs,https-ring,https-aws-lc-rs,tls-ring,tls-aws-lc-rs,webpki-roots,rustls-platform-verifier,dnssec-ring,dnssec-aws-lc-rs --exclude-features tracing
+      run: cargo hack test --each-feature
   
   coverage:
     name: coverage

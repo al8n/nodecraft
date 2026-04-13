@@ -176,6 +176,7 @@ mod resolver {
       let resolver = HostAddrResolver::<TokioRuntime>::default();
       let google_addr = HostAddr::try_from("google.com:8080").unwrap();
       let ip = resolver.resolve(&google_addr).await.unwrap();
+      #[cfg(feature = "std")]
       println!("google.com:8080 resolved to: {}", ip);
     }
 
@@ -301,6 +302,7 @@ mod resolver {
       let resolver = HostAddrResolver::default();
       let google_addr = HostAddr::try_from("google.com:8080").unwrap();
       let ip = resolver.resolve(&google_addr).await.unwrap();
+      #[cfg(feature = "std")]
       println!("google.com:8080 resolved to: {}", ip);
     }
 
