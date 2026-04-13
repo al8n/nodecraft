@@ -328,7 +328,7 @@ mod tests {
     let node = Node::from(("test3", 300));
     assert_eq!(*node.id(), "test3");
     assert_eq!(node.address(), &300);
-    assert_eq!(node.into_id().as_str(), "test3");
+    assert_eq!(node.into_id(), "test3");
     assert_eq!(node.into_address(), 300);
     println!("{}", node);
   }
