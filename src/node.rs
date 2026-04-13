@@ -285,7 +285,6 @@ const _: () = {
 #[cfg(all(any(feature = "std", feature = "alloc"), test))]
 mod tests {
   use super::*;
-  use arbitrary::{Arbitrary, Unstructured};
   use rand::distr::Alphanumeric;
   use smol_str_0_3::SmolStr;
 
@@ -303,7 +302,10 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "arbitrary")]
   fn test_node_access() {
+    use arbitrary::{Arbitrary, Unstructured};
+
     let mut data = vec![0; 1024];
     rand::fill(&mut data[..]);
     let mut data = Unstructured::new(&data);
