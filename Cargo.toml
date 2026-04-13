@@ -6,7 +6,7 @@ homepage = "https://github.com/al8n/nodecraft"
 repository = "https://github.com/al8n/nodecraft.git"
 documentation = "https://docs.rs/nodecraft/"
 readme = "README.md"
-version = "0.8.1"
+version = "0.9.0"
 license = "MIT OR Apache-2.0"
 keywords = ["node", "async", "distributed-systems"]
 categories = ["network-programming", "asynchronous", "development-tools"]
@@ -44,17 +44,18 @@ dns = [
   "async",
   "agnostic/dns",
 ]
-dns-over-quic = ["dns", "agnostic/dns-over-quic"]
-dns-over-h3 = ["dns", "agnostic/dns-over-h3"]
-dns-over-https-rustls = ["dns", "agnostic/dns-over-https-rustls"]
-dns-over-rustls = ["dns", "agnostic/dns-over-rustls"]
-dns-over-openssl = ["dns", "agnostic/dns-over-openssl"]
-dns-over-native-tls = ["dns", "agnostic/dns-over-native-tls"]
-dns-webpki-roots = ["dns", "agnostic/dns-webpki-roots"]
-dns-native-certs = ["dns", "agnostic/dns-native-certs"]
-dnssec-openssl = ["dns", "agnostic/dnssec-openssl"]
-dnssec-ring = ["dnssec", "agnostic/dnssec-ring"]
-dnssec = ["dns", "agnostic/dnssec"]
+quic-ring = ["dns", "agnostic/quic-ring"]
+quic-aws-lc-rs = ["dns", "agnostic/quic-aws-lc-rs"]
+h3-ring = ["dns", "agnostic/h3-ring"]
+h3-aws-lc-rs = ["dns", "agnostic/h3-aws-lc-rs"]
+https-ring = ["dns", "agnostic/https-ring"]
+https-aws-lc-rs = ["dns", "agnostic/https-aws-lc-rs"]
+tls-ring = ["dns", "agnostic/tls-ring"]
+tls-aws-lc-rs = ["dns", "agnostic/tls-aws-lc-rs"]
+webpki-roots = ["dns", "agnostic/webpki-roots"]
+rustls-platform-verifier = ["dns", "agnostic/rustls-platform-verifier"]
+dnssec-ring = ["dns", "agnostic/dnssec-ring"]
+dnssec-aws-lc-rs = ["dns", "agnostic/dnssec-aws-lc-rs"]
 
 smol_str_0_3 = ["dep:smol_str_0_3", "cheap-clone/smol_str_0_3", "rkyv?/smol_str-0_3"]
 triomphe_0_1 = ["cheap-clone/triomphe_0_1"]
@@ -66,7 +67,7 @@ serde = [
   "dep:serde",
   "smol_str_0_3?/serde",
   "humantime-serde",
-  "hickory-resolver?/serde-config",
+  "hickory-resolver?/serde",
 ]
 rkyv = ["dep:rkyv"]
 
@@ -84,7 +85,7 @@ cheap-clone = { version = "0.3", default-features = false, features = [
   "smol_str_0_3",
 ] }
 
-agnostic = { version = "0.8", default-features = false, optional = true }
+agnostic = { version = "0.9", default-features = false, optional = true }
 byteorder = "1"
 futures = { version = "0.3", default-features = false, optional = true }
 thiserror = { version = "2", default-features = false }
@@ -95,7 +96,7 @@ humantime-serde = { version = "1", default-features = false, optional = true }
 
 smol_str_0_3 = { package = "smol_str", version = "0.3", default-features = false, optional = true }
 
-hickory-resolver = { version = "0.24", default-features = false, optional = true }
+hickory-resolver = { version = "0.25", default-features = false, optional = true }
 crossbeam-skiplist = { version = "0.1", optional = true }
 
 tracing = { version = "0.1", optional = true }
@@ -107,10 +108,10 @@ quickcheck = { version = "1", default-features = false, optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-rand = "0.9"
+rand = "0.10"
 serde_json = "1"
 rmp-serde = "1"
-agnostic = { version = "0.8", features = ["tokio"] }
+agnostic = { version = "0.9", features = ["tokio"] }
 arbitrary = "1"
 quickcheck = "1"
 quickcheck_macros = "1"

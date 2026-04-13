@@ -251,7 +251,8 @@ mod tests {
 
   impl NodeId {
     fn random(size: usize) -> Self {
-      use rand::Rng;
+      use rand::RngExt;
+
       let id = rng()
         .sample_iter(Alphanumeric)
         .take(size)

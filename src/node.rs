@@ -82,6 +82,18 @@ impl<I, A> Node<I, A> {
     (self.id, self.address)
   }
 
+  /// Consumes the node and returns the id of the node.
+  #[inline]
+  pub fn into_id(self) -> I {
+    self.id
+  }
+
+  /// Consumes the node and returns the address of the node.
+  #[inline]
+  pub fn into_address(self) -> A {
+    self.address
+  }
+
   /// Maps an `Node<I, A>` to `Node<I, U>` by applying a function to the current node.
   ///
   /// # Example
@@ -92,6 +104,7 @@ impl<I, A> Node<I, A> {
   /// let node = Node::new("test", 100u64);
   /// let node = node.map_address(|address| address.to_string());
   /// assert_eq!(node.address(), "100");
+  /// ```
   #[inline]
   pub fn map_address<U>(self, f: impl FnOnce(A) -> U) -> Node<I, U> {
     Node {
@@ -277,7 +290,7 @@ mod tests {
   use smol_str_0_3::SmolStr;
 
   fn random(size: usize) -> Node<SmolStr, u64> {
-    use rand::{Rng, rng};
+    use rand::{RngExt, rng};
     let id = rng()
       .sample_iter(Alphanumeric)
       .take(size)
@@ -315,6 +328,8 @@ mod tests {
     let node = Node::from(("test3", 300));
     assert_eq!(*node.id(), "test3");
     assert_eq!(node.address(), &300);
+    assert_eq!(node.into_id().as_str(), "test3");
+    assert_eq!(node.into_address(), 300);
     println!("{}", node);
   }
 
