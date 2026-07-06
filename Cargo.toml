@@ -79,7 +79,7 @@ arbitrary = ["dep:arbitrary", "hostaddr?/arbitrary"]
 
 [dependencies]
 idna = { version = "1", optional = true, default-features = false, features = ["compiled_data"] }
-hostaddr = { version = "0.2", optional = true, default-features = false, features = ["smol_str_0_3", "cheap-clone"] }
+hostaddr = { version = "0.3", optional = true, default-features = false, features = ["smol_str_0_3", "cheap-clone"] }
 # hostaddr = { path = "../hostaddr", optional = true, default-features = false, features = ["smol_str_0_3", "cheap-clone"] }
 cheap-clone = { version = "0.3", default-features = false, features = [
   "smol_str_0_3",
